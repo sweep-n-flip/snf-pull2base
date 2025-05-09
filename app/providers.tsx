@@ -2,9 +2,14 @@
 
 import { MiniKitProvider } from "@coinbase/onchainkit/minikit";
 import { type ReactNode } from "react";
-import { arbitrumSepolia, baseSepolia, optimismSepolia, polygonMumbai, sepolia } from "wagmi/chains";
+import { sepolia } from "wagmi/chains";
 
 export function Providers(props: { children: ReactNode }) {
+  // Usa a URL absoluta para o logo
+  const logoUrl = typeof window !== 'undefined' 
+    ? `${window.location.origin}/logo.svg` 
+    : '/logo.svg';
+
   return (
     <MiniKitProvider
       apiKey={process.env.NEXT_PUBLIC_ONCHAINKIT_API_KEY}
@@ -14,17 +19,8 @@ export function Providers(props: { children: ReactNode }) {
           mode: "auto",
           theme: "mini-app-theme",
           name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
-          logo: process.env.NEXT_PUBLIC_ICON_URL,
-        },
-        wallets: {
-          chains: [
-            sepolia, 
-            baseSepolia, 
-            optimismSepolia, 
-            arbitrumSepolia, 
-            polygonMumbai
-          ],
-        },
+          logo: logoUrl,
+        }
       }}
     >
       {props.children}

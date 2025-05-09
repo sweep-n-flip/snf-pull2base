@@ -32,6 +32,7 @@ export function CollectionList({
   const [collections, setCollections] = useState<NFTCollection[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     if (!selectedNetwork) {
@@ -74,6 +75,27 @@ export function CollectionList({
     fetchCollections();
   }, [selectedNetwork]);
 
+  // When a collection is selected, set collapsed to true
+  useEffect(() => {
+    if (selectedCollection) {
+      setCollapsed(true);
+    } else {
+      setCollapsed(false);
+    }
+  }, [selectedCollection]);
+  
+  const handleCollectionClick = (collection: NFTCollection) => {
+    if (selectedCollection?.id === collection.id) {
+      // If clicking on already selected collection, deselect it and expand the list
+      onSelectCollection(null as any);
+      setCollapsed(false);
+    } else {
+      // Otherwise, select the collection and collapse the list
+      onSelectCollection(collection);
+      setCollapsed(true);
+    }
+  };
+
   if (!selectedNetwork) {
     return (
       <div className="text-center p-8 text-black">
@@ -107,6 +129,73 @@ export function CollectionList({
     );
   }
 
+  // Display just the selected collection when collapsed
+  if (collapsed && selectedCollection) {
+    return (
+      <div className="mt-6">
+        <div className="mb-4">
+          <h2 className="text-lg font-medium text-black">Selected Collection</h2>
+        </div>
+        
+        <div className="bg-white rounded-xl overflow-hidden border border-gray-200">
+          {/* Table header */}
+          <div className="grid grid-cols-12 gap-2 p-3 bg-gray-50 border-b border-gray-200 text-sm font-medium text-black">
+            <div className="col-span-1">#</div>
+            <div className="col-span-5">Collection</div>
+            <div className="col-span-2 text-right">Floor</div>
+            <div className="col-span-2 text-right">Items</div>
+            <div className="col-span-2 text-right">Action</div>
+          </div>
+          
+          {/* Selected Collection */}
+          <div 
+            key={selectedCollection.id}
+            onClick={() => handleCollectionClick(selectedCollection)}
+            className="grid grid-cols-12 gap-2 p-3 border-b border-gray-200 hover:bg-gray-50 cursor-pointer bg-[var(--app-orange-light)]"
+          >
+            <div className="col-span-1 flex items-center text-black">
+              1
+            </div>
+            <div className="col-span-5 flex items-center space-x-3">
+              {selectedCollection.image ? (
+                <img 
+                  src={selectedCollection.image} 
+                  alt={selectedCollection.name} 
+                  className="w-10 h-10 rounded-full" 
+                />
+              ) : (
+                <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+              )}
+              <div>
+                <div className="font-medium text-sm text-black">{selectedCollection.name}</div>
+                <div className="text-xs text-black">{selectedCollection.symbol}</div>
+              </div>
+            </div>
+            <div className="col-span-2 text-right flex items-center justify-end">
+              {selectedCollection.floorPrice ? (
+                <div className="text-sm text-black">
+                  {selectedCollection.floorPrice.amount.toFixed(3)} 
+                  <span className="text-black text-xs ml-1">{selectedCollection.floorPrice.currency}</span>
+                </div>
+              ) : (
+                <span className="text-xs text-black">-</span>
+              )}
+            </div>
+            <div className="col-span-2 text-right flex items-center justify-end text-sm text-black">
+              {selectedCollection.tokenCount ? parseInt(selectedCollection.tokenCount).toLocaleString() : '-'}
+            </div>
+            <div className="col-span-2 text-right flex items-center justify-end">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-[var(--app-accent)]">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show all collections when expanded
   return (
     <div className="mt-6">
       <div className="mb-4">
@@ -120,14 +209,14 @@ export function CollectionList({
           <div className="col-span-5">Collection</div>
           <div className="col-span-2 text-right">Floor</div>
           <div className="col-span-2 text-right">Items</div>
-          <div className="col-span-2 text-right">Volume</div>
+          <div className="col-span-2 text-right">Action</div>
         </div>
         
         {/* Collections */}
         {collections.map((collection, index) => (
           <div 
             key={collection.id}
-            onClick={() => onSelectCollection(collection)}
+            onClick={() => handleCollectionClick(collection)}
             className={`grid grid-cols-12 gap-2 p-3 border-b border-gray-200 hover:bg-gray-50 cursor-pointer ${
               selectedCollection?.id === collection.id ? 'bg-[var(--app-orange-light)]' : ''
             }`}
