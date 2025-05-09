@@ -5,6 +5,11 @@
 :root {
   --background: #ffffff;
   --foreground: #111111;
+  --ock-button-primary-bg: var(--app-orange-primary);
+  --ock-button-primary-bg-hover: var(--app-orange-secondary);
+  --ock-button-primary-text: white;
+  --ock-connect-wallet-button-bg: var(--app-orange-primary);
+  --ock-connect-wallet-button-bg-hover: var(--app-orange-secondary);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,4 +27,15 @@ body {
   font-weight: 400;
   font-style: normal;
   font-size: 80%;
+}
+
+button[data-ock-connect-wallet-button] {
+  background-color: var(--app-orange-primary) !important;
+  color: white !important;
+  font-weight: bold !important;
+  border-radius: 0.5rem !important;
+}
+
+button[data-ock-connect-wallet-button]:hover {
+  background-color: var(--app-orange-secondary) !important;
 }
