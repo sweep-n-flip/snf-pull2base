@@ -408,16 +408,16 @@ export function NFTGrid({ selectedCollection, selectedNetwork }: NFTGridProps) {
       </div>
 
       {selectedNFT && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-medium text-black">{selectedNFT.name}</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl w-[95vw] h-[85vh] overflow-hidden flex flex-col mx-4 my-4">
+            <div className="p-3 sm:p-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-black truncate">{selectedNFT.name}</h3>
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedNFT(null);
                 }}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 flex-shrink-0 ml-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -425,25 +425,25 @@ export function NFTGrid({ selectedCollection, selectedNetwork }: NFTGridProps) {
               </button>
             </div>
             
-            <div className="p-4">
-              <div className="flex flex-col md:flex-row gap-6">
-                <div className="md:w-1/2">
-                  <div className="aspect-square w-full rounded-xl overflow-hidden border border-gray-200">
+            <div className="p-3 sm:p-4 overflow-y-auto flex-grow">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="w-full md:w-1/3">
+                  <div className="aspect-square max-h-[200px] sm:max-h-[280px] w-auto rounded-xl overflow-hidden border border-gray-200 mx-auto">
                     <img
                       src={selectedNFT.image}
                       alt={selectedNFT.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                       onError={(e) => {
                         (e.target as HTMLImageElement).src = 'https://placehold.co/400x400?text=No+Image';
                       }}
                     />
                   </div>
                 </div>
-                <div className="md:w-1/2">
+                <div className="w-full md:w-2/3">
                   {selectedNFT.description && (
                     <div className="mb-4">
                       <h4 className="text-sm font-medium text-gray-700 mb-1">Descrição</h4>
-                      <p className="text-sm text-black">{selectedNFT.description}</p>
+                      <p className="text-sm text-black max-h-16 overflow-y-auto">{selectedNFT.description}</p>
                     </div>
                   )}
                   
@@ -471,14 +471,14 @@ export function NFTGrid({ selectedCollection, selectedNetwork }: NFTGridProps) {
                     {selectedNFT.attributes && selectedNFT.attributes.length > 0 && (
                       <div>
                         <h4 className="text-sm font-medium text-gray-700 mb-2">Atributos</h4>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-2 max-h-20 overflow-y-auto pr-1">
                           {selectedNFT.attributes.map((attr, idx) => (
                             <div 
                               key={idx} 
                               className="bg-[var(--app-orange-light)] rounded-lg p-2"
                             >
-                              <p className="text-xs text-gray-500">{attr.trait_type}</p>
-                              <p className="text-sm font-medium text-[var(--app-accent)]">{attr.value}</p>
+                              <p className="text-xs text-gray-500 truncate">{attr.trait_type}</p>
+                              <p className="text-sm font-medium text-[var(--app-accent)] truncate">{attr.value}</p>
                             </div>
                           ))}
                         </div>
@@ -489,7 +489,7 @@ export function NFTGrid({ selectedCollection, selectedNetwork }: NFTGridProps) {
               </div>
             </div>
             
-            <div className="p-4 border-t border-gray-200 flex justify-end">
+            <div className="p-4 border-t border-gray-200 flex justify-end mt-auto">
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
