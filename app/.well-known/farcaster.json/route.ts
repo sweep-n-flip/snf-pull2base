@@ -11,12 +11,16 @@ export async function GET() {
       version: process.env.NEXT_PUBLIC_VERSION,
       name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
       homeUrl: URL,
-      iconUrl: process.env.NEXT_PUBLIC_ICON_URL,
-      imageUrl: process.env.NEXT_PUBLIC_IMAGE_URL,
+      iconUrl: `${URL}${process.env.NEXT_PUBLIC_ICON_URL}`,
+      imageUrl: `${URL}${process.env.NEXT_PUBLIC_IMAGE_URL}`,
       buttonTitle: `Launch ${process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME}`,
-      splashImageUrl: process.env.NEXT_PUBLIC_SPLASH_IMAGE_URL,
+      splashImageUrl: `${URL}${process.env.NEXT_PUBLIC_SPLASH_IMAGE_URL}`,
       splashBackgroundColor: `#${process.env.NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR}`,
       webhookUrl: `${URL}/api/webhook`,
+      subtitle: "Browse NFT collections on Base", // Adicione uma descrição curta
+      description: "Explore NFT collections on Monad Testnet and Sepolia networks with Push2Base", // Adicione uma descrição mais longa
+      primaryCategory: "art-creativity", // Categoria principal
+      tags: ["nft", "base", "monad", "sepolia"] // Tags para busca/filtragem
     },
   });
 }
