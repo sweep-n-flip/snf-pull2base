@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  generateWarpcastShareUrl,
   getMainnetNFTBuyData,
   getMainnetNFTsByCollection,
   getTrendingCollections,
@@ -604,6 +605,41 @@ export function MainnetMarketplace() {
                       <p className="text-center text-gray-700">This NFT is not currently for sale.</p>
                     </Card>
                   )}
+                </div>
+
+                {/* Share to Warpcast */}
+                {/* Share to Warpcast Frame */}
+                <div className="mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-[#0052FF]/90 text-white border-none py-3"
+                    onClick={async () => {
+                      if (!selectedNFT) return;
+                      
+                      try {
+                        const url = generateWarpcastShareUrl(
+                          selectedNetwork,
+                          selectedNFT,
+                          window.location.origin
+                        );
+                        window.open(url, '_blank');
+                      } catch (err) {
+                        console.error("Error generating share URL:", err);
+                        alert("Failed to share to Warpcast. Please try again.");
+                      }
+                    }}
+                  >
+                    <img 
+                      src="/base-logo.svg" 
+                      alt="Base" 
+                      className="h-5 w-5" 
+                    />
+                    <span className="font-semibold">Share to Warpcast</span>
+                  </Button>
+                  <p className="text-xs text-center text-gray-500 mt-2">
+                    Share this NFT as a framed post on Warpcast
+                  </p>
                 </div>
               </div>
             </div>

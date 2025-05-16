@@ -438,3 +438,46 @@ export async function buyNFTDirectly(
     };
   }
 }
+
+/**
+ * Generate a URL for sharing an NFT to Warpcast as a frame
+ * This allows users to share NFTs for purchase directly in their Warpcast feed
+ */
+export function generateWarpcastShareUrl(
+  network: MainnetNetwork,
+  nft: ReservoirNFT,
+  baseUrl: string = typeof window !== 'undefined' ? window.location.origin : ''
+): string {
+  if (!nft || !nft.token) return '';
+  
+  // Format the NFT data for the URL
+  const contractAddress = nft.token.contract;
+  const tokenId = nft.token.tokenId;
+  const collectionName = nft.token.collection?.name || '';
+  const tokenName = nft.token.name || `#${tokenId}`;
+  const image = nft.token.image || '';
+  const price = nft.market?.floorAsk?.price?.amount?.native || 0;
+  const currency = nft.market?.floorAsk?.price?.currency?.symbol || 'ETH';
+  
+  // Create the URL with parameters needed for the frame
+  const shareUrl = new URL(`${baseUrl}/api/frames/nft`);
+  shareUrl.searchParams.append('network', network.id.toString());
+  shareUrl.searchParams.append('contract', contractAddress);
+  shareUrl.searchParams.append('tokenId', tokenId);
+  shareUrl.searchParams.append('collection', encodeURIComponent(collectionName));
+  shareUrl.searchParams.append('name', encodeURIComponent(tokenName));
+  
+  if (image) {
+    shareUrl.searchParams.append('image', encodeURIComponent(image));
+  }
+  
+  if (price) {
+    shareUrl.searchParams.append('price', price.toString());
+    shareUrl.searchParams.append('currency', currency);
+  }
+  
+  // Create the warpcast:// URL that will open the frame in Warpcast app
+  const warpcastUrl = `https://warpcast.com/~/compose?text=Check out this NFT: ${encodeURIComponent(tokenName)}&embeds[]=${encodeURIComponent(shareUrl.toString())}`;
+  
+  return warpcastUrl;
+}
