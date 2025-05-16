@@ -10,9 +10,8 @@ import {
   ReservoirNFT,
   searchCollections
 } from "@/lib/services/mainnetReservoir";
-import { adaptViemWallet } from "@reservoir0x/reservoir-sdk";
-import { Execute } from "@reservoir0x/reservoir-sdk";
 import { ConnectWallet } from "@coinbase/onchainkit/wallet";
+import { adaptViemWallet, Execute } from "@reservoir0x/reservoir-sdk";
 import { useCallback, useEffect, useState } from "react";
 import { useAccount, useWalletClient } from "wagmi";
 import { Button, Card } from "../Main";
@@ -129,8 +128,8 @@ export function MainnetMarketplace() {
       // Create the wallet adapter for Reservoir SDK
       const wallet = adaptViemWallet(walletClient);
       
-      // Get the buyer address from wallet
-      const buyerAddress = wallet.address;
+      // Get the buyer address from wallet - must await as it returns a Promise
+      const buyerAddress = await wallet.address();
       
       // Call the buy function with the wallet adapter
       const result = await import('@/lib/services/mainnetReservoir').then(mod => 
@@ -276,12 +275,12 @@ export function MainnetMarketplace() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--app-accent)] mx-auto"></div>
               </div>
             ) : collections.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 max-w-[1800px] mx-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {collections.map(collection => (
                   <Card 
                     key={collection.id}
-                    className="p-3 cursor-pointer hover:shadow-md transition-shadow max-w-[400px]"
-                    onClick={() => handleSelectCollection(collection)}}
+                    className="p-3 cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => handleSelectCollection(collection)}
                   >
                     <div className="flex flex-col">
                       <div className="aspect-square w-full rounded-md overflow-hidden mb-2">

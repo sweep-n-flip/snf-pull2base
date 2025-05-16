@@ -1,5 +1,5 @@
 {
-  "name": "snf-push2Base",
+  "name": "snf-Pull2Base",
   "version": "0.1.0",
   "private": true,
   "description": "Bridge NFTs from Sepolia to Base with automatic purchasing",

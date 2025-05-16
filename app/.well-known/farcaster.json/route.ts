@@ -18,7 +18,7 @@ export async function GET() {
       splashBackgroundColor: `#${process.env.NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR}`,
       webhookUrl: `${URL}/api/webhook`,
       subtitle: "Browse NFT collections on Base", // Adicione uma descrição curta
-      description: "Explore NFT collections on Monad Testnet and Sepolia networks with Push2Base", // Adicione uma descrição mais longa
+      description: "Explore NFT collections on Monad Testnet and Sepolia networks with Pull2Base", // Adicione uma descrição mais longa
       primaryCategory: "art-creativity", // Categoria principal
       tags: ["nft", "base", "monad", "sepolia"] // Tags para busca/filtragem
     },
