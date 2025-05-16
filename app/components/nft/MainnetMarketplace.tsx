@@ -265,7 +265,7 @@ export function MainnetMarketplace() {
 
         {/* Search Results or Trending Collections */}
         {!selectedCollection && (
-          <div className="mb-8">
+          <div className="mb-8 center-align">
             <h2 className="text-xl font-semibold mb-4">
               {searchTerm.length > 0 ? "Collections Found" : "Featured Collections"}
             </h2>
@@ -275,11 +275,11 @@ export function MainnetMarketplace() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--app-accent)] mx-auto"></div>
               </div>
             ) : collections.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <div className="nft-grid">
                 {collections.map(collection => (
                   <Card 
                     key={collection.id}
-                    className="p-3 cursor-pointer hover:shadow-md transition-shadow"
+                    className="p-3 cursor-pointer hover:shadow-md transition-shadow max-w-[300px] mx-auto w-full"
                     onClick={() => handleSelectCollection(collection)}
                   >
                     <div className="flex flex-col">
@@ -384,11 +384,11 @@ export function MainnetMarketplace() {
                       )}
                     </div>
                     
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 mb-10">
+                    <div className="nft-grid mb-10">
                       {filteredNFTs.map(nft => (
                         <Card
                           key={`${nft.token.contract}-${nft.token.tokenId}`}
-                          className={`overflow-hidden cursor-pointer ${
+                          className={`overflow-hidden cursor-pointer max-w-[300px] mx-auto w-full ${
                             selectedNFT?.token.tokenId === nft.token.tokenId ? 'ring-2 ring-[var(--app-accent)]' : ''
                           }`}
                           onClick={() => handleSelectNFT(nft)}

@@ -49,7 +49,7 @@ export async function estimateBridgeFee(
     );
     
     // Adicione um buffer de 10% para garantir que a transação não falhe
-    return (fee * 110n) / 100n;
+    return (fee * BigInt(110)) / BigInt(100);
   } catch (error) {
     console.error('Erro ao estimar taxa de bridge:', error);
     // Retornar um valor padrão em caso de erro (0.01 ETH)

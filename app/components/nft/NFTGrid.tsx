@@ -360,12 +360,12 @@ export function NFTGrid({ selectedCollection, selectedNetwork }: NFTGridProps) {
         />
       )}
       
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="nft-grid">
         {filteredNfts.map((nft) => (
           <div
             key={nft.id}
             onClick={() => setSelectedNFT(nft)}
-            className={`bg-white border border-gray-200 rounded-xl overflow-hidden cursor-pointer transform transition-all hover:shadow-md ${
+            className={`bg-white border border-gray-200 rounded-xl overflow-hidden cursor-pointer transform transition-all hover:shadow-md max-w-[300px] mx-auto w-full ${
               selectedNFT?.id === nft.id ? 'ring-2 ring-[var(--app-accent)] shadow-md' : ''
             }`}
           >

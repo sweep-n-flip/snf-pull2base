@@ -29,6 +29,55 @@ body {
   font-size: 80%;
 }
 
+/* NFT Grid responsivo personalizado */
+.nft-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 0.75rem;
+}
+
+/* Mobile em landscape e pequenos tablets */
+@media (min-width: 480px) {
+  .nft-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Tablets */
+@media (min-width: 640px) {
+  .nft-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Desktops pequenos */
+@media (min-width: 768px) {
+  .nft-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Desktops médios */
+@media (min-width: 1024px) {
+  .nft-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Desktops grandes */
+@media (min-width: 1280px) {
+  .nft-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+/* Telas ultra-wide */
+@media (min-width: 1536px) {
+  .nft-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
 button[data-ock-connect-wallet-button] {
   background-color: var(--app-orange-primary) !important;
   color: white !important;
