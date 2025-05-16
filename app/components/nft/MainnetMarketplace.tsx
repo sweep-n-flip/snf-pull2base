@@ -326,7 +326,7 @@ export function MainnetMarketplace() {
         {selectedCollection && (
           <div>
             {/* Collection Information */}
-            <div className="mb-6 flex items-center space-x-4">
+            <div className="mb-6 flex items-center gap-2">
               <Button 
                 variant="outline" 
                 size="sm"
@@ -340,7 +340,7 @@ export function MainnetMarketplace() {
               </Button>
               
               <div className="flex items-center space-x-3">
-                <div className="h-12 w-12 rounded-full overflow-hidden">
+                <div className="h-12 w-12  rounded-full overflow-hidden">
                   {selectedCollection.image ? (
                     <img 
                       src={selectedCollection.image} 
