@@ -609,11 +609,11 @@ export function MainnetMarketplace() {
 
                 {/* Share to Warpcast */}
                 {/* Share to Warpcast Frame */}
-                <div className="mt-4">
+                <div className="mt-4 text-center">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full flex items-center justify-center gap-2 bg-[#0052FF] hover:bg-[#0052FF]/90 text-white border-none py-3"
+                    className="w-28 flex items-center justify-center gap-2 bg-[#6944BA] hover:bg-[#0052FF]/90 text-white border-none py-3"
                     onClick={async () => {
                       if (!selectedNFT) return;
                       
@@ -631,11 +631,11 @@ export function MainnetMarketplace() {
                     }}
                   >
                     <img 
-                      src="/base-logo.svg" 
+                      src="/warpcast.png" 
                       alt="Base" 
                       className="h-5 w-5" 
                     />
-                    <span className="font-semibold">Share to Warpcast</span>
+                    <span className="font-semibold text-white">Cast</span>
                   </Button>
                   <p className="text-xs text-center text-gray-500 mt-2">
                     Share this NFT as a framed post on Warpcast
