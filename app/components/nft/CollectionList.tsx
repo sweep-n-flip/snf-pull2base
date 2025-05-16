@@ -199,7 +199,7 @@ export function CollectionList({
   return (
     <div className="mt-6">
       <div className="mb-4">
-        <h2 className="text-lg font-medium text-black">Trending NFT Collections</h2>
+        <h2 className="text-lg font-medium text-black">Coleção Específica - Sepolia</h2>
       </div>
       
       <div className="bg-white rounded-xl overflow-hidden border border-gray-200">

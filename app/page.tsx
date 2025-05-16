@@ -16,15 +16,11 @@ import {
 } from "@coinbase/onchainkit/wallet";
 import { useCallback, useEffect, useState } from "react";
 import { Button, Header, Icon, Logo } from "./components/Main";
-import { CollectionList, type NFTCollection } from "./components/nft/CollectionList";
-import { AVAILABLE_NETWORKS, NetworkSelector, type Network } from "./components/nft/NetworkSelector";
-import { NFTGrid } from "./components/nft/NFTGrid";
+import { NFTTabsNavigation } from "./components/nft/NFTTabsNavigation";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
-  const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(AVAILABLE_NETWORKS[0]);
-  const [selectedCollection, setSelectedCollection] = useState<NFTCollection | null>(null);
 
   const addFrame = useAddFrame();
 
@@ -38,15 +34,6 @@ export default function App() {
     const frameAdded = await addFrame();
     setFrameAdded(Boolean(frameAdded));
   }, [addFrame]);
-
-  const handleNetworkChange = (network: Network) => {
-    setSelectedNetwork(network);
-    setSelectedCollection(null);
-  };
-
-  const handleCollectionSelect = (collection: NFTCollection) => {
-    setSelectedCollection(collection);
-  };
 
   // Header component with logo and wallet
   const header = (
@@ -113,30 +100,7 @@ export default function App() {
       {header}
       <main className="flex-1 py-6">
         <div className="container mx-auto px-4">
-        
-            {/* Z-index aumentado para garantir que o dropdown apareça sobre outros elementos */}
-            <NetworkSelector
-              selectedNetwork={selectedNetwork}
-              onSelectNetwork={handleNetworkChange}
-            />
-            
-            {selectedNetwork && (
-              <CollectionList
-                selectedNetwork={selectedNetwork}
-                onSelectCollection={handleCollectionSelect}
-                selectedCollection={selectedCollection}
-              />
-            )}
-          
-          {/* Z-index baixo para garantir que o dropdown fique por cima */}
-          {selectedCollection && (
-            <div className="mt-6 w-[60%] mx-auto relative z-0">
-              <NFTGrid 
-                selectedCollection={selectedCollection} 
-                selectedNetwork={selectedNetwork}
-              />
-            </div>
-          )}
+          <NFTTabsNavigation />
         </div>
       </main>
       {footer}

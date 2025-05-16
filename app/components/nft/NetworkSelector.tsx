@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "../Main";
 
-// Definição das redes disponíveis (apenas testnets)
+// Definition of available networks (testnets only)
 export interface Network {
   id: number;
   name: string;
@@ -15,17 +15,8 @@ export interface Network {
 }
 
 export const AVAILABLE_NETWORKS: Network[] = [
-    {
-      id: 1,
-      name: "Monad Testnet",
-      chainId: 10143,
-      currency: "MON",
-      rpcUrl: "https://testnet-rpc.monad.xyz",
-      blockExplorerUrl: "https://testnet.monadexplorer.com",
-      iconUrl: "monad-logo.svg"
-    },
   {
-    id: 2,
+    id: 1,
     name: "Sepolia",
     chainId: 11155111,
     currency: "ETH",
@@ -64,14 +55,14 @@ export function NetworkSelector({ selectedNetwork, onSelectNetwork }: NetworkSel
   const dropdownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  // Garante que Sepolia está selecionada por padrão quando o componente é montado
+  // Ensures that Sepolia is selected by default when the component is mounted
   useEffect(() => {
     if (!selectedNetwork) {
       onSelectNetwork(AVAILABLE_NETWORKS[0]);
     }
   }, [selectedNetwork, onSelectNetwork]);
 
-  // Fecha o dropdown quando clicar fora dele
+  // Closes the dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) && 
@@ -105,7 +96,7 @@ export function NetworkSelector({ selectedNetwork, onSelectNetwork }: NetworkSel
 
       <div className="p-4">
         <div className="relative">
-          {/* Botão de seleção da rede atual */}
+          {/* Current network selection button */}
           <div 
             ref={buttonRef}
             onClick={toggleDropdown}
@@ -138,7 +129,7 @@ export function NetworkSelector({ selectedNetwork, onSelectNetwork }: NetworkSel
               <div className="p-3 border-b border-gray-100">
                 <input
                   type="text"
-                  placeholder="Buscar rede"
+                  placeholder="Search networks"
                   className="w-full px-3 py-2 bg-gray-50 rounded-lg border-none focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)] text-black"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -150,7 +141,7 @@ export function NetworkSelector({ selectedNetwork, onSelectNetwork }: NetworkSel
                 Available Networks
               </div>
 
-              {/* Lista de redes */}
+              {/* Network list */}
               <div className="max-h-[300px] overflow-y-auto ">
                 {filteredNetworks.map((network) => (
                     <button

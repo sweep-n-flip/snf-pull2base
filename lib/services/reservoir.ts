@@ -44,20 +44,21 @@ export interface ReservoirNFT {
   };
 }
 
-// Mapeamento dos endpoints da Reservoir por chainId
+// Mapping of Reservoir endpoints by chainId - Only Sepolia supported
 const RESERVOIR_API_URLS: Record<number, string> = {
   11155111: 'https://api-sepolia.reservoir.tools', // Sepolia
-  10143: 'https://api-monad-testnet.reservoir.tools', // Monad Testnet
 };
 
-// API Keys por rede (idealmente viriam das variáveis de ambiente)
+// API Keys by network (ideally would come from environment variables)
 const API_KEYS: Record<number, string> = {
   11155111: process.env.NEXT_PUBLIC_RESERVOIR_API_KEY || 'demo-api-key',
-  10143: process.env.NEXT_PUBLIC_RESERVOIR_API_KEY || 'demo-api-key',
 };
 
+// Endereço da coleção específica que queremos mostrar
+const ALLOWED_COLLECTION_ADDRESS = '0xA1e094C81E4cB385b40f5B707a4c3657029D6918';
+
 /**
- * Obtém coleções populares de uma rede específica
+ * Obtém apenas a coleção específica configurada
  */
 export async function getCollectionsByNetwork(network: Network, limit = 10): Promise<ReservoirCollection[]> {
   try {
@@ -69,8 +70,9 @@ export async function getCollectionsByNetwork(network: Network, limit = 10): Pro
 
     const apiKey = API_KEYS[network.chainId];
     
+    // Busca apenas pela coleção específica usando o endereço do contrato
     const response = await fetch(
-      `${apiUrl}/collections/v7?limit=${limit}&sortBy=allTimeVolume&includeTopBid=false`,
+      `${apiUrl}/collections/v7?contract=${ALLOWED_COLLECTION_ADDRESS}`,
       {
         headers: {
           'accept': '*/*',
@@ -89,6 +91,18 @@ export async function getCollectionsByNetwork(network: Network, limit = 10): Pro
     console.error('Erro ao buscar coleções:', error);
     return [];
   }
+}
+
+/**
+ * Interface para os dados de venda dos NFTs
+ */
+export interface NFTSaleData {
+  tokenId: string;
+  price: string; // Preço em ETH formatado como string
+  priceWei: string; // Preço em Wei como string
+  seller: string;
+  marketplaceAddress: string;
+  buyData: string; // Dados para execução da compra
 }
 
 /**
@@ -165,6 +179,61 @@ export async function getCollectionDetails(
     return data.collections?.[0] || null;
   } catch (error) {
     console.error('Erro ao buscar detalhes da coleção:', error);
+    return null;
+  }
+}
+
+/**
+ * Obtém dados de venda de um NFT específico
+ */
+export async function getNFTSaleData(
+  network: Network,
+  contractAddress: string,
+  tokenId: string
+): Promise<NFTSaleData | null> {
+  try {
+    const apiUrl = RESERVOIR_API_URLS[network.chainId];
+    
+    if (!apiUrl) {
+      throw new Error(`API Reservoir não disponível para a rede ${network.name}`);
+    }
+    
+    const apiKey = API_KEYS[network.chainId];
+
+    // Endpoint para obter ordens de venda de um token específico
+    const response = await fetch(
+      `${apiUrl}/orders/asks/v6?token=${contractAddress}:${tokenId}&status=active&sortBy=price&limit=1`,
+      {
+        headers: {
+          'accept': '*/*',
+          'x-api-key': apiKey
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Erro ao buscar dados de venda: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    // Se não houver ordens de venda ativas
+    if (!data.orders || data.orders.length === 0) {
+      return null;
+    }
+
+    const order = data.orders[0];
+    
+    return {
+      tokenId,
+      price: order.price?.amount?.native?.toString() || '0',
+      priceWei: order.price?.amount?.raw || '0',
+      seller: order.maker || '',
+      marketplaceAddress: order.exchange || '',
+      buyData: order.rawData || ''
+    };
+  } catch (error) {
+    console.error('Erro ao buscar dados de venda do NFT:', error);
     return null;
   }
 }

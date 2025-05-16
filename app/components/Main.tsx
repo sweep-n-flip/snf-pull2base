@@ -250,7 +250,7 @@ export function Icon({ name, size = "md", className = "" }: IconProps) {
 export function Logo() {
   return (
     <div className={'flex items-center gap-2'}>
-      <img src='logo.svg' />
+      <img src='logo.png' className='w-8 h-8'/>
       <span className="text-[var(--app-accent)] font-bold text-xl">Push2Base</span>
       <img src='base-logo.svg' className='' />
     </div>

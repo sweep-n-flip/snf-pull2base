@@ -7,8 +7,8 @@ import { sepolia } from "wagmi/chains";
 export function Providers(props: { children: ReactNode }) {
   // Usa a URL absoluta para o logo
   const logoUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/logo.svg` 
-    : '/logo.svg';
+    ? `${window.location.origin}/logo.png` 
+    : '/logo.png';
 
   return (
     <MiniKitProvider

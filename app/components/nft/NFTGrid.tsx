@@ -4,6 +4,7 @@ import { getNFTsByCollection } from "@/lib/services/reservoir";
 import { useEffect, useState } from "react";
 import { NFTCollection } from "./CollectionList";
 import { Network } from "./NetworkSelector";
+import { NFTBridge } from "./NFTBridge";
 
 export interface NFT {
   id: string;
@@ -17,6 +18,7 @@ export interface NFT {
     trait_type: string;
     value: string | number;
   }>;
+  salePrice?: string; // Preço de venda em ETH
 }
 
 interface NFTGridProps {
@@ -116,27 +118,10 @@ export function NFTGrid({ selectedCollection, selectedNetwork }: NFTGridProps) {
   }, [selectedCollection, selectedNetwork]);
 
   // Função para extrair todos os atributos únicos das NFTs
+  // Simplificada para remover filtragem por atributos - focaremos apenas na bridge
   const extractAttributeFilters = (nftList: NFT[]) => {
-    const traitTypes: Record<string, Set<string>> = {};
-    
-    nftList.forEach(nft => {
-      if (nft.attributes) {
-        nft.attributes.forEach(attr => {
-          if (!traitTypes[attr.trait_type]) {
-            traitTypes[attr.trait_type] = new Set();
-          }
-          traitTypes[attr.trait_type].add(String(attr.value));
-        });
-      }
-    });
-    
-    const filters: AttributeFilter[] = Object.entries(traitTypes).map(([traitType, valueSet]) => ({
-      traitType,
-      values: Array.from(valueSet),
-      selectedValues: []
-    }));
-    
-    setAttributeFilters(filters);
+    // Removemos a complexidade de filtros por atributos
+    setAttributeFilters([]);
   };
 
   // Função para aplicar filtros e ordenação
@@ -399,7 +384,7 @@ export function NFTGrid({ selectedCollection, selectedNetwork }: NFTGridProps) {
               <div className="flex justify-between items-center mt-1">
                 <p className="text-xs text-black">Token ID: {nft.tokenId}</p>
                 <div className="bg-[var(--app-orange-light)] text-[var(--app-accent)] text-xs px-2 py-0.5 rounded">
-                  View
+                  Bridge to Base
                 </div>
               </div>
             </div>
@@ -409,7 +394,7 @@ export function NFTGrid({ selectedCollection, selectedNetwork }: NFTGridProps) {
 
       {selectedNFT && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl w-[95vw] h-[85vh] overflow-hidden flex flex-col mx-4 my-4">
+          <div className="bg-white rounded-xl w-[95vw] max-w-2xl overflow-hidden flex flex-col mx-4 my-4">
             <div className="p-3 sm:p-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-medium text-black truncate">{selectedNFT.name}</h3>
               <button 
@@ -425,29 +410,22 @@ export function NFTGrid({ selectedCollection, selectedNetwork }: NFTGridProps) {
               </button>
             </div>
             
-            <div className="p-3 sm:p-4 overflow-y-auto flex-grow">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="w-full md:w-1/3">
-                  <div className="aspect-square max-h-[200px] sm:max-h-[280px] w-auto rounded-xl overflow-hidden border border-gray-200 mx-auto">
-                    <img
-                      src={selectedNFT.image}
-                      alt={selectedNFT.name}
-                      className="w-full h-full object-contain"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://placehold.co/400x400?text=No+Image';
-                      }}
-                    />
-                  </div>
-                </div>
-                <div className="w-full md:w-2/3">
-                  {selectedNFT.description && (
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-1">Descrição</h4>
-                      <p className="text-sm text-black max-h-16 overflow-y-auto">{selectedNFT.description}</p>
+            <div className="p-3 sm:p-4 overflow-y-auto">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="w-full sm:w-1/2">
+                    <div className="aspect-square max-h-[200px] sm:max-h-[280px] w-auto rounded-xl overflow-hidden border border-gray-200 mx-auto">
+                      <img
+                        src={selectedNFT.image}
+                        alt={selectedNFT.name}
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://placehold.co/400x400?text=No+Image';
+                        }}
+                      />
                     </div>
-                  )}
-                  
-                  <div className="space-y-4">
+                  </div>
+                  <div className="w-full sm:w-1/2">
                     <div>
                       <h4 className="text-sm font-medium text-gray-700 mb-1">Detalhes</h4>
                       <div className="bg-gray-50 rounded-lg p-3 space-y-2">
@@ -459,58 +437,25 @@ export function NFTGrid({ selectedCollection, selectedNetwork }: NFTGridProps) {
                           <span className="text-sm text-gray-600">Contrato</span>
                           <span className="text-sm font-medium truncate max-w-[180px] text-black">{selectedNFT.contract}</span>
                         </div>
-                        {selectedNFT.owner && (
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Dono</span>
-                            <span className="text-sm font-medium truncate max-w-[180px] text-black">{selectedNFT.owner}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
-
-                    {selectedNFT.attributes && selectedNFT.attributes.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Atributos</h4>
-                        <div className="grid grid-cols-2 gap-2 max-h-20 overflow-y-auto pr-1">
-                          {selectedNFT.attributes.map((attr, idx) => (
-                            <div 
-                              key={idx} 
-                              className="bg-[var(--app-orange-light)] rounded-lg p-2"
-                            >
-                              <p className="text-xs text-gray-500 truncate">{attr.trait_type}</p>
-                              <p className="text-sm font-medium text-[var(--app-accent)] truncate">{attr.value}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
+                
+                {/* Componente de Bridge */}
+                <div className="mt-4">
+                  <NFTBridge 
+                    nft={selectedNFT}
+                    network={selectedNetwork!}
+                    onBridgeComplete={() => {
+                      // Atualizar o estado após a conclusão do bridge
+                      setTimeout(() => {
+                        setSelectedNFT(null);
+                      }, 5000); // Fecha o modal após 5 segundos
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-            
-            <div className="p-4 border-t border-gray-200 flex justify-end mt-auto">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedNFT(null);
-                }}
-                className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium mr-2"
-              >
-                Fechar
-              </button>
-              <button 
-                className="bg-[var(--app-accent)] text-white px-4 py-2 rounded-lg text-sm font-medium"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  window.open(
-                    `${selectedNetwork?.blockExplorerUrl}/token/${selectedNFT.contract}?a=${selectedNFT.tokenId}`,
-                    '_blank'
-                  );
-                }}
-              >
-                Ver no Explorer
-              </button>
             </div>
           </div>
         </div>

@@ -1,104 +1,76 @@
-# MiniKit Template
+# Pull 2 Base
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-onchain --mini`](), configured with:
+Aplicação Bridge para NFTs de Sepolia para Base, utilizando MiniKit e API Reservoir.
 
-- [MiniKit](https://docs.base.org/builderkits/minikit/overview)
-- [OnchainKit](https://www.base.org/builders/onchainkit)
-- [Tailwind CSS](https://tailwindcss.com)
-- [Next.js](https://nextjs.org/docs)
+## Descrição
 
-## Getting Started
+Esta aplicação permite aos usuários:
+1. Selecionar NFTs de coleções na testnet Sepolia
+2. Iniciar um processo de bridge para Base Sepolia
+3. A aplicação compra automaticamente o NFT usando uma carteira de compra pré-configurada
+4. O usuário confirma apenas a transação de bridge
 
-1. Install dependencies:
+## Configuração
+
+1. Crie um arquivo `.env.local` na raiz do projeto com as seguintes variáveis:
+
+```bash
+# Carteira de compra automática (com fundos em Sepolia)
+NEXT_PUBLIC_PURCHASE_WALLET_ADDRESS=0x...
+PURCHASE_WALLET_PRIVATE_KEY=0x...
+
+# URL RPC para Sepolia
+NEXT_PUBLIC_SEPOLIA_RPC_URL=https://rpc.sepolia.org
+
+# MiniKit
+NEXT_PUBLIC_ONCHAINKIT_API_KEY=sua_chave_aqui
+NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME=Push2Base
+
+# Reservoir API
+NEXT_PUBLIC_RESERVOIR_API_KEY=sua_chave_reservoir
+```
+
+2. Instale as dependências:
 ```bash
 npm install
-# or
+# ou
 yarn install
-# or
+# ou
 pnpm install
-# or
-bun install
 ```
 
-2. Verify environment variables, these will be set up by the `npx create-onchain --mini` command:
+3. Execute o projeto:
 
-You can regenerate the FARCASTER Account Association environment variables by running `npx create-onchain --manifest` in your project directory.
-
-The environment variables enable the following features:
-
-- Frame metadata - Sets up the Frame Embed that will be shown when you cast your frame
-- Account association - Allows users to add your frame to their account, enables notifications
-- Redis API keys - Enable Webhooks and background notifications for your application by storing users notification details
-
-```bash
-# Required for Frame metadata
-NEXT_PUBLIC_URL=
-NEXT_PUBLIC_VERSION=
-NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME=
-NEXT_PUBLIC_ICON_URL=
-NEXT_PUBLIC_IMAGE_URL=
-NEXT_PUBLIC_SPLASH_IMAGE_URL=
-NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR=
-
-# Required to allow users to add your frame
-FARCASTER_HEADER=
-FARCASTER_PAYLOAD=
-FARCASTER_SIGNATURE=
-
-# Required for webhooks and background notifications
-REDIS_URL=
-REDIS_TOKEN=
-```
-
-3. Start the development server:
 ```bash
 npm run dev
+# ou
+yarn dev
+# ou
+pnpm dev
 ```
 
-## Template Features
+## Arquitetura
 
-### Frame Configuration
-- `.well-known/farcaster.json` endpoint configured for Frame metadata and account association
-- Frame metadata automatically added to page headers in `layout.tsx`
+- **app/**: Componentes da interface e página principal
+- **lib/services/**: 
+  - `bridge.ts`: Configurações e funções para a bridge entre Sepolia e Base
+  - `purchase.ts`: Serviço de compra automática de NFTs
+  - `reservoir.ts`: Integração com a API Reservoir para buscar dados de NFTs
 
-### Background Notifications
-- Redis-backed notification system using Upstash
-- Ready-to-use notification endpoints in `api/notify` and `api/webhook`
-- Notification client utilities in `lib/notification-client.ts`
+## Fluxo do aplicativo
 
-### Theming
-- Custom theme defined in `theme.css` with OnchainKit variables
-- Pixel font integration with Pixelify Sans
-- Dark/light mode support through OnchainKit
+1. O aplicativo mostra apenas uma coleção NFT específica em Sepolia (0xA1e094C81E4cB385b40f5B707a4c3657029D6918)
+2. O usuário escolhe um NFT específico para fazer bridge
+3. Ao clicar em "Bridge to Base", o aplicativo:
+   - Verifica se o NFT está à venda
+   - Compra automaticamente o NFT usando a carteira configurada
+   - Solicita ao usuário que confirme a transação de bridge
+4. O NFT é transferido para Base Sepolia no endereço do usuário
 
-### MiniKit Provider
-The app is wrapped with `MiniKitProvider` in `providers.tsx`, configured with:
-- OnchainKit integration
-- Access to Frames context
-- Sets up Wagmi Connectors
-- Sets up Frame SDK listeners
-- Applies Safe Area Insets
+## Tecnologias utilizadas
 
-## Customization
-
-To get started building your own frame, follow these steps:
-
-1. Remove the DemoComponents:
-   - Delete `components/DemoComponents.tsx`
-   - Remove demo-related imports from `page.tsx`
-
-2. Start building your Frame:
-   - Modify `page.tsx` to create your Frame UI
-   - Update theme variables in `theme.css`
-   - Adjust MiniKit configuration in `providers.tsx`
-
-3. Add your frame to your account:
-   - Cast your frame to see it in action
-   - Share your frame with others to start building your community
-
-## Learn More
-
-- [MiniKit Documentation](https://docs.base.org/builderkits/minikit/overview)
-- [OnchainKit Documentation](https://docs.base.org/builderkits/onchainkit/getting-started)
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Tailwind CSS Documentation](https://tailwindcss.com/docs)
+- [MiniKit](https://docs.base.org/builderkits/minikit/overview): Framework para desenvolvimento de aplicações Web3
+- [Reservoir API](https://docs.reservoir.tools/reference/overview): API para acesso a dados de NFTs
+- [ethers.js](https://docs.ethers.org/): Biblioteca para interação com contratos Ethereum
+- [Next.js](https://nextjs.org/docs): Framework React para desenvolvimento web
+- [Tailwind CSS](https://tailwindcss.com/docs): Framework CSS para estilização
