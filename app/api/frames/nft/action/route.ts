@@ -71,18 +71,37 @@ export async function POST(req: NextRequest) {
         );
         
       case "3": // Share
-        // Allow sharing with others
+        // Generate URL for sharing to Warpcast
+        const nftData = await fetch(`${baseUrl}/api/frames/nft?network=${networkId}&contract=${contract}&tokenId=${tokenId}`).then(res => res.text());
+        
+        // Create share URL
+        const imageMatch = nftData.match(/<meta property="og:image" content="([^"]*)"/);
+        const titleMatch = nftData.match(/<meta property="og:title" content="([^"]*)"/);
+        
+        const image = imageMatch ? imageMatch[1] : '/p2b.png';
+        const title = titleMatch ? titleMatch[1] : 'NFT';
+        
+        // Generate Warpcast share URL
+        const shareUrl = new URL(`${baseUrl}/api/frames/nft`);
+        shareUrl.searchParams.append('network', networkId);
+        shareUrl.searchParams.append('contract', contract);
+        shareUrl.searchParams.append('tokenId', tokenId);
+        
+        // Redirect to Warpcast with the frame URL
+        const warpcastUrl = `https://warpcast.com/~/compose?text=Check out this NFT: ${encodeURIComponent(title)}&embeds[]=${encodeURIComponent(shareUrl.toString())}`;
+        
         return new NextResponse(
           `<!DOCTYPE html>
           <html>
             <head>
               <meta property="fc:frame" content="vNext">
               <meta name="fc:frame:title" content="Share this NFT">
-              <meta property="fc:frame:image" content="/p2b.png">
-              <meta name="fc:frame:button:1" content="Thanks for sharing!">
+              <meta property="fc:frame:image" content="${image}">
+              <meta property="fc:frame:button:1" content="Share on Warpcast">
+              <meta property="fc:redirect" content="${warpcastUrl}">
             </head>
             <body>
-              <p>Thank you for sharing this NFT!</p>
+              <p>Redirecting to Warpcast to share this NFT...</p>
             </body>
           </html>`,
           {
