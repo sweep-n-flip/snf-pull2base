@@ -13,6 +13,15 @@ const nextConfig = {
     NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME || 'Pull2Base',
     NEXT_PUBLIC_RESERVOIR_API_KEY: process.env.NEXT_PUBLIC_RESERVOIR_API_KEY,
   },
+  // Garantir que o .well-known seja tratado corretamente
+  async rewrites() {
+    return [
+      {
+        source: '/.well-known/farcaster.json',
+        destination: '/api/.well-known/farcaster.json',
+      },
+    ];
+  },
 };
 
 export default nextConfig;
