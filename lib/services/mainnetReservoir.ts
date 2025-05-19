@@ -466,7 +466,7 @@ export function generateWarpcastShareUrl(
   shareUrl.searchParams.append('tokenId', tokenId);
   shareUrl.searchParams.append('collection', encodeURIComponent(collectionName));
   shareUrl.searchParams.append('name', encodeURIComponent(tokenName));
-
+  console.log(image)
   if (image) {
     shareUrl.searchParams.append('image', encodeURIComponent(image));
   }

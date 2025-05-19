@@ -624,7 +624,7 @@ export function MainnetMarketplace() {
                           window.location.origin
                         );
                         console.log(url)
-                        window.location.href = url;
+                        window.open(url, '_blank', 'noopener,noreferrer');
                       } catch (err) {
                         console.error("Error generating share URL:", err);
                         alert("Failed to share to Warpcast. Please try again.");
