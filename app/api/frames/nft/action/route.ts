@@ -71,24 +71,17 @@ export async function POST(req: NextRequest) {
         );
         
       case "3": // Share
-        // Generate URL for sharing to Warpcast
-        const nftData = await fetch(`${baseUrl}/api/frames/nft?network=${networkId}&contract=${contract}&tokenId=${tokenId}`).then(res => res.text());
+        // Simplificar drasticamente a URL de compartilhamento
+        const shareText = `Check out this NFT on Pull2Base`;
         
-        // Create share URL
-        const imageMatch = nftData.match(/<meta property="og:image" content="([^"]*)"/);
-        const titleMatch = nftData.match(/<meta property="og:title" content="([^"]*)"/);
+        // Criar uma URL muito mais simples para o frame
+        const frameUrl = new URL(`${baseUrl}/api/frames/nft`);
+        frameUrl.searchParams.append('network', networkId);
+        frameUrl.searchParams.append('contract', contract);
+        frameUrl.searchParams.append('tokenId', tokenId);
         
-        const image = imageMatch ? imageMatch[1] : '/p2b.png';
-        const title = titleMatch ? titleMatch[1] : 'NFT';
-        
-        // Generate Warpcast share URL
-        const shareUrl = new URL(`${baseUrl}/api/frames/nft`);
-        shareUrl.searchParams.append('network', networkId);
-        shareUrl.searchParams.append('contract', contract);
-        shareUrl.searchParams.append('tokenId', tokenId);
-        
-        // Redirect to Warpcast with the frame URL
-        const warpcastUrl = `https://warpcast.com/~/compose?text=Check out this NFT: ${encodeURIComponent(title)}&embeds[]=${encodeURIComponent(shareUrl.toString())}`;
+        // Usar formato mais simples da URL de compartilhamento do Warpcast
+        const simpleWarpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(frameUrl.toString())}`;
         
         return new NextResponse(
           `<!DOCTYPE html>
@@ -96,9 +89,9 @@ export async function POST(req: NextRequest) {
             <head>
               <meta property="fc:frame" content="vNext">
               <meta name="fc:frame:title" content="Share this NFT">
-              <meta property="fc:frame:image" content="${image}">
+              <meta property="fc:frame:image" content="${baseUrl}/logo.png">
               <meta property="fc:frame:button:1" content="Share on Warpcast">
-              <meta property="fc:redirect" content="${warpcastUrl}">
+              <meta property="fc:redirect" content="${simpleWarpcastUrl}">
             </head>
             <body>
               <p>Redirecting to Warpcast to share this NFT...</p>

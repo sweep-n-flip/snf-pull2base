@@ -449,19 +449,40 @@ export function generateWarpcastShareUrl(
   baseUrl: string = typeof window !== 'undefined' ? window.location.origin : ''
 ): string {
   if (!nft || !nft.token) return '';
-  
-  // Informações básicas do NFT
+
+  // Format the NFT data for the URL
   const contractAddress = nft.token.contract;
   const tokenId = nft.token.tokenId;
+  const collectionName = nft.token.collection?.name || '';
   const tokenName = nft.token.name || `#${tokenId}`;
+  const image = nft.token.image || '';
+  const price = nft.market?.floorAsk?.price?.amount?.native || 0;
+  const currency = nft.market?.floorAsk?.price?.currency?.symbol || 'ETH';
+
+  // Create the URL with parameters needed for the frame
+  const shareUrl = new URL(`${baseUrl}/api/frames/nft`);
+  shareUrl.searchParams.append('network', network.id.toString());
+  shareUrl.searchParams.append('contract', contractAddress);
+  shareUrl.searchParams.append('tokenId', tokenId);
+  shareUrl.searchParams.append('collection', encodeURIComponent(collectionName));
+  shareUrl.searchParams.append('name', encodeURIComponent(tokenName));
+
+  if (image) {
+    shareUrl.searchParams.append('image', encodeURIComponent(image));
+  }
+
+  if (price) {
+    shareUrl.searchParams.append('price', price.toString());
+    shareUrl.searchParams.append('currency', currency);
+  }
+
+  // Create the warpcast:// URL that will open the frame in Warpcast app
+  // Simplificação extrema para maior compatibilidade móvel
+  const shareText = `Check out this NFT on Pull2Base`;
+  const simpleShareUrl = `${baseUrl}/api/frames/nft?network=${network.id}&contract=${contractAddress}&tokenId=${tokenId}`;
   
-  // Criar uma URL simples e direta para o frame
-  // Usar apenas os parâmetros essenciais para reduzir complexidade
-  const shareUrl = `${baseUrl}/api/frames/nft?network=${network.id}&contract=${contractAddress}&tokenId=${tokenId}`;
+  // URL mais simples para o Warpcast
+  const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(simpleShareUrl)}`;
   
-  // URL de composição para o Warpcast - usar o mínimo de parâmetros possível
-  const warpcastUrl = `https://warpcast.com/~/compose?text=Check out this NFT: ${tokenName}&embeds[]=${shareUrl}`;
-  
-  console.log('Warpcast URL:', warpcastUrl);
   return warpcastUrl;
 }
