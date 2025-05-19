@@ -464,11 +464,11 @@ export function generateWarpcastShareUrl(
   shareUrl.searchParams.append('network', network.id.toString());
   shareUrl.searchParams.append('contract', contractAddress);
   shareUrl.searchParams.append('tokenId', tokenId);
-  shareUrl.searchParams.append('collection', encodeURIComponent(collectionName));
-  shareUrl.searchParams.append('name', encodeURIComponent(tokenName));
+  shareUrl.searchParams.append('collection', collectionName); // Removido encodeURIComponent
+  shareUrl.searchParams.append('name', tokenName); // Removido encodeURIComponent
   
   if (image) {
-    shareUrl.searchParams.append('image', encodeURIComponent(image));
+    shareUrl.searchParams.append('image', image); // Removido encodeURIComponent
   }
   
   if (price) {
@@ -478,6 +478,6 @@ export function generateWarpcastShareUrl(
   
   // Create the warpcast:// URL that will open the frame in Warpcast app
   const warpcastUrl = `https://warpcast.com/~/compose?text=Check out this NFT: ${encodeURIComponent(tokenName)}&embeds[]=${encodeURIComponent(shareUrl.toString())}`;
-  
+  console.log('Warpcast URL:', warpcastUrl);
   return warpcastUrl;
 }
