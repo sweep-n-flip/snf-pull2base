@@ -623,7 +623,7 @@ export function MainnetMarketplace() {
                           selectedNFT,
                           window.location.origin
                         );
-                        window.open(url, '_blank');
+                        window.location.href = url;
                       } catch (err) {
                         console.error("Error generating share URL:", err);
                         alert("Failed to share to Warpcast. Please try again.");

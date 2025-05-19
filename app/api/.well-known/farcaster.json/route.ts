@@ -24,7 +24,7 @@ export async function GET() {
       subtitle: "Browse NFT collections on Base", 
       description: "Explore NFT collections on Monad Testnet and Sepolia networks with Pull2Base",
       primaryCategory: "art-creativity",
-      tags: ["nft", "base", "monad", "sepolia"]
+      tags: ["nft", "base", "marketplace", "sepolia"]
     },
     // Formato novo recomendado pela documentação da Base
     frames: {

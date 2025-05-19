@@ -26,7 +26,6 @@ export async function GET() {
       primaryCategory: "art-creativity",
       tags: ["nft", "base", "monad", "sepolia"]
     },
-    // Formato novo recomendado pela documentação da Base
     frames: {
       version: 'vNext',
       image: {
