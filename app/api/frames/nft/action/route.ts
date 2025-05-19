@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
             <head>
               <meta property="fc:frame" content="vNext">
               <meta name="fc:frame:title" content="Buy this NFT">
-              <meta property="fc:frame:image" content="/p2b.png">
+              <meta property="fc:frame:image" content="https://img.reservoir.tools/images/v2/base/7%2FrdF%2Fe%2F0iXY8HduhRCoIehkmFeXPeOQQFbbmIPfjCYzAZb5c8PsKx%2F2%2F8tnLlug3mSsdBXJBd1jXk3t4Veez5Te75rFKC2jJrjqkWJjcMZwQkQoxzRXJh5RFQ%2B%2BIgJUKr4TxuzFm2m072q3aSqZ4w%3D%3D.gif?width=512">
               <meta property="fc:frame:button:1" content="Open Marketplace">
               <meta property="fc:redirect" content="${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&tokenId=${tokenId}&action=buy">
             </head>
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
             <head>
               <meta property="fc:frame" content="vNext">
               <meta name="fc:frame:title" content="NFT Details">
-              <meta property="fc:frame:image" content="/p2b.png">
+              <meta property="fc:frame:image" content="https://img.reservoir.tools/images/v2/base/7%2FrdF%2Fe%2F0iXY8HduhRCoIehkmFeXPeOQQFbbmIPfjCYzAZb5c8PsKx%2F2%2F8tnLlug3mSsdBXJBd1jXk3t4Veez5Te75rFKC2jJrjqkWJjcMZwQkQoxzRXJh5RFQ%2B%2BIgJUKr4TxuzFm2m072q3aSqZ4w%3D%3D.gif?width=512">
               <meta property="fc:frame:button:1" content="Open Marketplace">
               <meta property="fc:redirect" content="${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&tokenId=${tokenId}">
             </head>
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
         <head>
           <meta property="fc:frame" content="vNext">
           <meta name="fc:frame:title" content="Error">
-          <meta property="fc:frame:image" content="/logo.png">
+          <meta property="fc:frame:image" content="https://img.reservoir.tools/images/v2/base/7%2FrdF%2Fe%2F0iXY8HduhRCoIehkmFeXPeOQQFbbmIPfjCYzAZb5c8PsKx%2F2%2F8tnLlug3mSsdBXJBd1jXk3t4Veez5Te75rFKC2jJrjqkWJjcMZwQkQoxzRXJh5RFQ%2B%2BIgJUKr4TxuzFm2m072q3aSqZ4w%3D%3D.gif?width=512">
           <meta name="fc:frame:button:1" content="Try Again">
         </head>
         <body>
