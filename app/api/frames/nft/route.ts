@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const image = searchParams.get('image') || '';
   const price = searchParams.get('price') || '';
   const currency = searchParams.get('currency') || 'ETH';
-  
+  console.log('Search params:', searchParams);
   // Find the network
   const network = MAINNET_NETWORKS.find(n => n.id.toString() === networkId);
   
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
   
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin;
   const buyUrl = `${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&tokenId=${tokenId}`;
-
+  console.log(image)
   // Get the image URL - ensure it's absolute
   let imageUrl = image;
   if (imageUrl && !imageUrl.startsWith('http')) {
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
       imageUrl = `${baseUrl}/${imageUrl}`;
     }
   } else if (!imageUrl) {
-    imageUrl = `${baseUrl}/logo.png`;
+    imageUrl = `https://img.reservoir.tools/images/v2/base/7%2FrdF%2Fe%2F0iXY8HduhRCoIehkmFeXPeOQQFbbmIPfjCYzAZb5c8PsKx%2F2%2F8tnLlug3mSsdBXJBd1jXk3t4Veez5Te75rFKC2jJrjqkWJjcMZwQkQoxzRXJh5RFQ%2B%2BIgJUKr4TxuzFm2m072q3aSqZ4w%3D%3D.gif?width=512`;
   }
   
   // Generate appropriate title
