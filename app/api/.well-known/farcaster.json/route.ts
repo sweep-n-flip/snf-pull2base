@@ -3,9 +3,7 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const URL = process.env.NEXT_PUBLIC_URL || '';
 
-  // Retorna AMBOS os formatos para garantir compatibilidade
   return NextResponse.json({
-    // Formato antigo mantido para compatibilidade
     accountAssociation: {
       header: process.env.FARCASTER_HEADER,
       payload: process.env.FARCASTER_PAYLOAD,
@@ -26,7 +24,6 @@ export async function GET() {
       primaryCategory: "art-creativity",
       tags: ["nft", "base", "marketplace", "sepolia"]
     },
-    // Formato novo recomendado pela documentação da Base
     frames: {
       version: 'vNext',
       image: {
