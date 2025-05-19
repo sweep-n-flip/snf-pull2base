@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
           const imageMatch = nftResponse.match(/<meta property="og:image" content="([^"]*)"/);
 
           const title = titleMatch ? titleMatch[1] : `NFT #${tokenId}`;
-          const image = imageMatch ? imageMatch[1] : `/p2b.png`;
+          const image = imageMatch ? imageMatch[1] : `https://img.reservoir.tools/images/v2/base/7%2FrdF%2Fe%2F0iXY8HduhRCoIehkmFeXPeOQQFbbmIPfjCYzAZb5c8PsKx%2F2%2F8tnLlug3mSsdBXJBd1jXk3t4Veez5Te75rFKC2jJrjqkWJjcMZwQkQoxzRXJh5RFQ%2B%2BIgJUKr4TxuzFm2m072q3aSqZ4w%3D%3D.gif?width=512`;
           
           const frameUrl = new URL(`${baseUrl}/api/frames/nft`);
           frameUrl.searchParams.append('network', networkId);
