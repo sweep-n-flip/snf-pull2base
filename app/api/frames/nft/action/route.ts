@@ -74,13 +74,11 @@ export async function POST(req: NextRequest) {
         try {
           const nftResponse = await fetch(`${baseUrl}/api/frames/nft?network=${networkId}&contract=${contract}&tokenId=${tokenId}`).then(res => res.text());
           
-          const titleMatch = nftResponse.match(/<meta property="og:title" content="([^"]*)"/) || nftResponse.match(/<title>([^<]*)<\/title>/);
-          const imageMatch = nftResponse.match(/<meta name="fc:frame:image" content="([^"]*)"/);
-          console.log(imageMatch)
+          const titleMatch = nftResponse.match(/<meta property="og:title" content="([^"]*)"/);
+          const imageMatch = nftResponse.match(/<meta property="og:image" content="([^"]*)"/);
+
           const title = titleMatch ? titleMatch[1] : `NFT #${tokenId}`;
-          const image = imageMatch ? imageMatch[1] : `${baseUrl}/logo.png`;
-          
-          console.log('Extracted image URL:', image);
+          const image = imageMatch ? imageMatch[1] : `/p2b.png`;
           
           const frameUrl = new URL(`${baseUrl}/api/frames/nft`);
           frameUrl.searchParams.append('network', networkId);
