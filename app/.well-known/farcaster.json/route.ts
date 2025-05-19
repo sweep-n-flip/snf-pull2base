@@ -3,9 +3,7 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const URL = process.env.NEXT_PUBLIC_URL || '';
 
-  // Retorna AMBOS os formatos para garantir compatibilidade
   return NextResponse.json({
-    // Formato antigo mantido para compatibilidade
     accountAssociation: {
       header: process.env.FARCASTER_HEADER,
       payload: process.env.FARCASTER_PAYLOAD,
@@ -29,7 +27,7 @@ export async function GET() {
     frames: {
       version: 'vNext',
       image: {
-        src: `${URL}/p2b.png`,
+        src: `https://img.reservoir.tools/images/v2/base/7%2FrdF%2Fe%2F0iXY8HduhRCoIehkmFeXPeOQQFbbmIPfjCYzAZb5c8PsKx%2F2%2F8tnLlug3mSsdBXJBd1jXk3t4Veez5Te75rFKC2jJrjqkWJjcMZwQkQoxzRXJh5RFQ%2B%2BIgJUKr4TxuzFm2m072q3aSqZ4w%3D%3D.gif?width=512`,
         aspectRatio: '1.91:1'
       },
       buttons: [
