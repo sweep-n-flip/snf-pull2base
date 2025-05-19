@@ -477,11 +477,9 @@ export function generateWarpcastShareUrl(
   }
 
   // Create the warpcast:// URL that will open the frame in Warpcast app
-  // Simplificação extrema para maior compatibilidade móvel
-  const shareText = `Check out this NFT on Pull2Base`;
+  const shareText = `Check out this NFT: ${tokenName}`;
   const simpleShareUrl = `${baseUrl}/api/frames/nft?network=${network.id}&contract=${contractAddress}&tokenId=${tokenId}`;
   
-  // URL mais simples para o Warpcast
   const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(simpleShareUrl)}`;
   
   return warpcastUrl;

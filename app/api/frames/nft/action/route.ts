@@ -71,36 +71,72 @@ export async function POST(req: NextRequest) {
         );
         
       case "3": // Share
-        // Simplificar drasticamente a URL de compartilhamento
-        const shareText = `Check out this NFT on Pull2Base`;
+        try {
+          const nftResponse = await fetch(`${baseUrl}/api/frames/nft?network=${networkId}&contract=${contract}&tokenId=${tokenId}`);
+          const nftData = await nftResponse.text();
+          
+          const titleMatch = nftData.match(/<meta property="og:title" content="([^"]*)"/) || nftData.match(/<title>([^<]*)<\/title>/);
+          const imageMatch = nftData.match(/<meta property="og:image" content="([^"]*)"/);
+          
+          const title = titleMatch ? titleMatch[1] : `NFT #${tokenId}`;
+          const image = imageMatch ? imageMatch[1] : `${baseUrl}/logo.png`;
+          
+          const frameUrl = new URL(`${baseUrl}/api/frames/nft`);
+          frameUrl.searchParams.append('network', networkId);
+          frameUrl.searchParams.append('contract', contract);
+          frameUrl.searchParams.append('tokenId', tokenId);
         
-        // Criar uma URL muito mais simples para o frame
-        const frameUrl = new URL(`${baseUrl}/api/frames/nft`);
-        frameUrl.searchParams.append('network', networkId);
-        frameUrl.searchParams.append('contract', contract);
-        frameUrl.searchParams.append('tokenId', tokenId);
-        
-        // Usar formato mais simples da URL de compartilhamento do Warpcast
-        const simpleWarpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(frameUrl.toString())}`;
-        
-        return new NextResponse(
-          `<!DOCTYPE html>
-          <html>
-            <head>
-              <meta property="fc:frame" content="vNext">
-              <meta name="fc:frame:title" content="Share this NFT">
-              <meta property="fc:frame:image" content="${baseUrl}/logo.png">
-              <meta property="fc:frame:button:1" content="Share on Warpcast">
-              <meta property="fc:redirect" content="${simpleWarpcastUrl}">
-            </head>
-            <body>
-              <p>Redirecting to Warpcast to share this NFT...</p>
-            </body>
-          </html>`,
-          {
-            headers: { 'Content-Type': 'text/html' },
-          }
-        );
+          const shareText = `Check out this NFT: ${title}`;
+          const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(frameUrl.toString())}`;
+          
+          return new NextResponse(
+            `<!DOCTYPE html>
+            <html>
+              <head>
+                <meta property="fc:frame" content="vNext">
+                <meta name="fc:frame:title" content="Share this NFT">
+                <meta property="fc:frame:image" content="${image}">
+                <meta property="fc:frame:button:1" content="Share on Warpcast">
+                <meta property="fc:redirect" content="${warpcastUrl}">
+              </head>
+              <body>
+                <p>Redirecting to Warpcast to share this NFT...</p>
+              </body>
+            </html>`,
+            {
+              headers: { 'Content-Type': 'text/html' },
+            }
+          );
+        } catch (error) {
+          console.error('Error fetching NFT data for sharing:', error);
+          
+          // Fallback to simple sharing if data fetching fails
+          const frameUrl = new URL(`${baseUrl}/api/frames/nft`);
+          frameUrl.searchParams.append('network', networkId);
+          frameUrl.searchParams.append('contract', contract);
+          frameUrl.searchParams.append('tokenId', tokenId);
+          
+          const simpleWarpcastUrl = `https://warpcast.com/~/compose?text=Check out this NFT&embeds[]=${encodeURIComponent(frameUrl.toString())}`;
+          
+          return new NextResponse(
+            `<!DOCTYPE html>
+            <html>
+              <head>
+                <meta property="fc:frame" content="vNext">
+                <meta name="fc:frame:title" content="Share this NFT">
+                <meta property="fc:frame:image" content="${baseUrl}/logo.png">
+                <meta property="fc:frame:button:1" content="Share on Warpcast">
+                <meta property="fc:redirect" content="${simpleWarpcastUrl}">
+              </head>
+              <body>
+                <p>Redirecting to Warpcast to share this NFT...</p>
+              </body>
+            </html>`,
+            {
+              headers: { 'Content-Type': 'text/html' },
+            }
+          );
+        }
         
       default:
         throw new Error('Invalid button');
