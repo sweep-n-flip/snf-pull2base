@@ -623,7 +623,6 @@ export function MainnetMarketplace() {
                           selectedNFT,
                           window.location.origin
                         );
-                        console.log(url)
                         window.open(url, '_blank', 'noopener,noreferrer');
                       } catch (err) {
                         console.error("Error generating share URL:", err);

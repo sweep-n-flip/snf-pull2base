@@ -449,7 +449,6 @@ export function generateWarpcastShareUrl(
   baseUrl: string = typeof window !== 'undefined' ? window.location.origin : ''
 ): string {
   if (!nft || !nft.token) return '';
-
   // Format the NFT data for the URL
   const contractAddress = nft.token.contract;
   const tokenId = nft.token.tokenId;
@@ -478,9 +477,8 @@ export function generateWarpcastShareUrl(
 
   // Create the warpcast:// URL that will open the frame in Warpcast app
   const shareText = `Check out this NFT: ${tokenName}`;
-  const simpleShareUrl = `${baseUrl}/api/frames/nft?network=${network.id}&contract=${contractAddress}&tokenId=${tokenId}`;
   
-  const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(simpleShareUrl)}`;
+  const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl.toString())}`;
   
   return warpcastUrl;
 }

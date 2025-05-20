@@ -27,7 +27,7 @@ export async function GET() {
     frames: {
       version: 'vNext',
       image: {
-        src: `https://img.reservoir.tools/images/v2/base/7%2FrdF%2Fe%2F0iXY8HduhRCoIehkmFeXPeOQQFbbmIPfjCYzAZb5c8PsKx%2F2%2F8tnLlug3mSsdBXJBd1jXk3t4Veez5Te75rFKC2jJrjqkWJjcMZwQkQoxzRXJh5RFQ%2B%2BIgJUKr4TxuzFm2m072q3aSqZ4w%3D%3D.gif?width=512`,
+        src: `${URL}/p2b.png`,
         aspectRatio: '1.91:1'
       },
       buttons: [
