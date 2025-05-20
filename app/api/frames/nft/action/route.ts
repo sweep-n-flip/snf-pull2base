@@ -97,6 +97,37 @@ export async function POST(req: NextRequest) {
                 <meta property="fc:frame:image" content="${image}">
                 <meta property="fc:frame:button:1" content="Share on Warpcast">
                 <meta property="fc:redirect" content="${warpcastUrl}">
+                <script>
+                  // Este script tenta garantir que o redirecionamento funcione corretamente em dispositivos móveis
+                  document.addEventListener('DOMContentLoaded', function() {
+                    // Determinar se estamos em um dispositivo móvel
+                    const isMobile = /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent.toLowerCase());
+                    // Verificar se já estamos no app Warpcast
+                    const isInApp = /warpcast/i.test(navigator.userAgent.toLowerCase()) || document.referrer.includes('warpcast.com');
+                    // Verificar se é iOS especificamente
+                    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent.toLowerCase());
+                    
+                    // URL de compartilhamento
+                    const shareUrl = "${warpcastUrl}";
+                    
+                    if (isInApp) {
+                      console.log("Detected Warpcast app environment");
+                      
+                      // Em alguns casos, precisamos forçar o redirecionamento
+                      setTimeout(function() {
+                        window.location.href = shareUrl;
+                      }, 50);
+                    }
+                    else if (isMobile) {
+                      console.log("Mobile device detected");
+                      
+                      // Dispositivos iOS podem precisar de tratamento especial
+                      if (isIOS) {
+                        // Para iOS, a URL padrão deve funcionar mas podemos adicionar detecção especial se necessário
+                      }
+                    }
+                  });
+                </script>
               </head>
               <body>
                 <p>Redirecting to Warpcast to share this NFT...</p>
