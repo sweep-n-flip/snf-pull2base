@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
         
         <!-- Frame metadata -->
         <meta name="fc:frame" content="vNext">
-        <meta name="fc:frame:image" content="${image}">
+        <meta name="fc:frame:image" content="${baseUrl}/logo.png"">
         <meta name="fc:frame:post_url" content="${baseUrl}/api/frames/nft/action">
         
         <meta name="fc:frame:title" content="${title}">
