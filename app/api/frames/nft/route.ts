@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
       <head>
         <title>${title} - NFT Frame</title>
         <meta property="og:title" content="${title}">
-        <meta property="og:image" content="${image}">
+        <meta property="og:image" content="${baseUrl}/logo.png">
         <meta property="og:description" content="${priceDisplay}">
         
         <!-- Frame metadata -->
