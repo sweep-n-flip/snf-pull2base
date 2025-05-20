@@ -454,16 +454,10 @@ export function generateWarpcastShareUrl(
   const tokenId = nft.token.tokenId;
   const tokenName = nft.token.name || `#${tokenId}`;
 
-  // Create the URL with parameters needed for the frame
-  const shareUrl = new URL(`${baseUrl}/api/frames/nft`);
-  shareUrl.searchParams.append('network', network.id.toString());
-  shareUrl.searchParams.append('contract', contractAddress);
-  shareUrl.searchParams.append('tokenId', tokenId);
-
   // Create the warpcast:// URL that will open the frame in Warpcast app
   const shareText = `Check out this NFT: ${tokenName}`;
-  
-  const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl.toString())}`;
+  const shareUrl = `${baseUrl}/api/frames/nft?network=${network.id}&contract=${contractAddress}&tokenId=${tokenId}`;
+  const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}`;
   
   return warpcastUrl;
 }
