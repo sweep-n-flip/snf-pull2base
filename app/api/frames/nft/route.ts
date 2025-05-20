@@ -55,18 +55,6 @@ export async function GET(req: NextRequest) {
   
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin;
   const buyUrl = `${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&tokenId=${tokenId}`;
-
-  // Get the image URL - ensure it's absolute
-  let imageUrl = image;
-  if (imageUrl && !imageUrl.startsWith('http')) {
-    if (imageUrl.startsWith('/')) {
-      imageUrl = `${baseUrl}${imageUrl}`;
-    } else {
-      imageUrl = `${baseUrl}/${imageUrl}`;
-    }
-  } else if (!imageUrl) {
-    imageUrl = `${baseUrl}/logo.png`;
-  }
   
   // Generate appropriate title
   const title = collection ? `${name} from ${collection}` : name || `NFT #${tokenId}`;
@@ -79,12 +67,12 @@ export async function GET(req: NextRequest) {
       <head>
         <title>${title} - NFT Frame</title>
         <meta property="og:title" content="${title}">
-        <meta property="og:image" content="${imageUrl}">
+        <meta property="og:image" content="${image}">
         <meta property="og:description" content="${priceDisplay}">
         
         <!-- Frame metadata -->
         <meta name="fc:frame" content="vNext">
-        <meta name="fc:frame:image" content="${imageUrl}">
+        <meta name="fc:frame:image" content="${image}">
         <meta name="fc:frame:post_url" content="${baseUrl}/api/frames/nft/action">
         
         <meta name="fc:frame:title" content="${title}">
