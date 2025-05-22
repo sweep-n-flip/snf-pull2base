@@ -11,7 +11,7 @@ import {
   ReservoirNFT,
   searchCollections
 } from "@/lib/services/mainnetReservoir";
-import { isMobileDevice, isWarpcastApp, getDeviceOS } from "@/lib/utils/deviceDetection";
+import { isMobileDevice, isWarpcastApp } from "@/lib/utils/deviceDetection";
 import { ConnectWallet } from "@coinbase/onchainkit/wallet";
 import { adaptViemWallet, Execute } from "@reservoir0x/reservoir-sdk";
 import { useCallback, useEffect, useState } from "react";
@@ -625,38 +625,17 @@ export function MainnetMarketplace() {
                           window.location.origin
                         );
                         
-                        // Se já estiver dentro do app Warpcast, usar navegação interna
-                        if (isWarpcastApp()) {
-                          console.log("Detected Warpcast app, using internal navigation");
-                          // No app Warpcast, a URL com https já funciona corretamente
+                        // Simplificamos a lógica de compartilhamento para usar a URL do warpcast diretamente
+                        // Em qualquer caso, redirecionamos para a URL do warpcast, que funcionará em desktop e mobile
+                        console.log("Opening Warpcast share URL:", url);
+                        
+                        // Se estamos no app Warpcast ou em dispositivo móvel
+                        if (isWarpcastApp() || isMobileDevice()) {
+                          // No dispositivo móvel, substituímos a navegação da janela atual
                           window.location.href = url;
-                        } 
-                        // Para dispositivos móveis, tentamos usar a URL que abrirá no app
-                        else if (isMobileDevice()) {
-                          console.log("Mobile device detected, opening share URL");
-                          
-                          const deviceOS = getDeviceOS();
-                          
-                          // Tratamento específico para iOS para garantir que o link funcione corretamente
-                          if (deviceOS === 'ios') {
-                            // No iOS, tentamos o esquema universal link que funciona melhor
-                            setTimeout(() => {
-                              // Se após um pequeno atraso ainda estivermos aqui, o app provavelmente não está instalado
-                              // Redirecionamos para a URL web como fallback
-                              window.location.href = url;
-                            }, 25);
-                            
-                            // Tentamos abrir diretamente com a mesma URL - o iOS decide o que fazer
-                            window.location.href = url;
-                          } else {
-                            // Para Android e outros dispositivos móveis
-                            window.location.href = url;
-                          }
-                        } 
-                        // Para desktop, abrimos na mesma aba
-                        else {
-                          console.log("Desktop detected, opening in same tab");
-                          window.location.href = url;
+                        } else {
+                          // No desktop, abrimos em nova aba
+                          window.open(url, '_blank', 'noopener,noreferrer');
                         }
                         } catch (err) {
                         console.error("Error generating share URL:", err);
