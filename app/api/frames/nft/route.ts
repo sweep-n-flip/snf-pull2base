@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
           
           <!-- Botão para tentar novamente -->
           <meta property="fc:frame:button:1" content="Return to Marketplace">
-          <meta property="fc:frame:button:1:action" content="post_redirect">
+          <meta property="fc:frame:button:1:action" content="link">
           <meta property="fc:frame:button:1:target" content="${req.nextUrl.origin}?tab=marketplace">
         </head>
         <body>
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
       </html>`,
       {
         headers: { 'Content-Type': 'text/html' },
-        status: 400
+        status: 200 // Return 200 for frames even on error to ensure they render properly
       }
     );
   }
@@ -105,8 +105,7 @@ export async function GET(req: NextRequest) {
           
           <meta property="fc:frame:title" content="${title}">
           <meta property="fc:frame:button:1" content="Buy NFT (${priceDisplay})">
-          <meta property="fc:frame:button:2" content="View Details">
-          <meta property="fc:frame:button:3" content="Share">
+          <!-- Using post action for initial button to handle in our backend -->
           
           <meta property="fc:frame:state" content="${Buffer.from(JSON.stringify({
             networkId,
@@ -134,15 +133,19 @@ export async function GET(req: NextRequest) {
     
     // Return error frame
     return new NextResponse(
-      `<html>
+      `<!DOCTYPE html>
+      <html>
         <head>
           <title>Error Loading NFT</title>
           <meta property="og:title" content="Error Loading NFT">
           <meta property="og:image" content="/logo.png">
+          <meta property="og:description" content="Failed to load NFT data. Please try again.">
+          
           <meta property="fc:frame" content="vNext">
           <meta property="fc:frame:image" content="/logo.png">
-          <meta property="fc:frame:button:1" content="Try Again">
+          <meta property="fc:frame:title" content="Error Loading NFT">
           <meta property="fc:frame:post_url" content="${req.nextUrl.origin}/api/frames/nft/action">
+          <meta property="fc:frame:button:1" content="Try Again">
         </head>
         <body>
           <p>Failed to load NFT data. Please try again.</p>
@@ -150,7 +153,7 @@ export async function GET(req: NextRequest) {
       </html>`,
       {
         headers: { 'Content-Type': 'text/html' },
-        status: 500
+        status: 200 // Return 200 for frames even on error to ensure they render properly
       }
     );
   }
