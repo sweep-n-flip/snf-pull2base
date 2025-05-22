@@ -105,7 +105,9 @@ export async function GET(req: NextRequest) {
           
           <meta property="fc:frame:title" content="${title}">
           <meta property="fc:frame:button:1" content="Buy NFT (${priceDisplay})">
-          <!-- Using post action for initial button to handle in our backend -->
+          
+          <!-- Adicionando requisito de assinatura para obtermos o FID e endereço do usuário -->
+          <meta property="fc:frame:requires_signature" content="true">
           
           <meta property="fc:frame:state" content="${Buffer.from(JSON.stringify({
             networkId,
