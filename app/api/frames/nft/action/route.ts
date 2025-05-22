@@ -1,30 +1,37 @@
 import { MAINNET_NETWORKS } from '@/lib/services/mainnetReservoir';
 import { NextRequest, NextResponse } from 'next/server';
 
-// De acordo com a especificação, temos que lidar com o frame action corretamente
 export async function POST(req: NextRequest) {
   try {
-    // Obter o corpo da requisição como formData conforme especificação de Frames
     const formData = await req.formData();
     
-    // Obter os dados necessários dos parâmetros do frame
     const stateBase64 = formData.get('state') as string;
     const buttonId = formData.get('buttonIndex') as string;
     
-    // Verificar parâmetros mínimos necessários
     if (!buttonId) {
       return new NextResponse(
-        JSON.stringify({ message: 'Invalid button index' }),
+        `<!DOCTYPE html>
+        <html>
+          <head>
+            <meta property="fc:frame" content="vNext">
+            <meta property="fc:frame:image" content="/logo.png">
+            <meta property="fc:frame:title" content="Error">
+            <meta property="fc:frame:post_url" content="${req.nextUrl.origin}/api/frames/nft/action">
+            <meta property="fc:frame:button:1" content="Try Again">
+          </head>
+          <body>
+            <p>Error: Invalid button index</p>
+          </body>
+        </html>`,
         { 
-          status: 400, 
+          status: 200, 
           headers: { 
-            'Content-Type': 'application/json'
+            'Content-Type': 'text/html'
           }
         }
       );
     }
     
-    // Decodificar o estado se disponível
     let state = {};
     if (stateBase64) {
       try {
@@ -37,28 +44,50 @@ export async function POST(req: NextRequest) {
     
     const { networkId, contract, tokenId } = state as any;
     
-    // Verificar parâmetros necessários do estado
     if (!networkId || !contract || !tokenId) {
       return new NextResponse(
-        JSON.stringify({ message: 'Missing required state parameters' }),
+        `<!DOCTYPE html>
+        <html>
+          <head>
+            <meta property="fc:frame" content="vNext">
+            <meta property="fc:frame:image" content="/logo.png">
+            <meta property="fc:frame:title" content="Error">
+            <meta property="fc:frame:post_url" content="${req.nextUrl.origin}/api/frames/nft/action">
+            <meta property="fc:frame:button:1" content="Try Again">
+          </head>
+          <body>
+            <p>Error: Missing required state parameters</p>
+          </body>
+        </html>`,
         { 
-          status: 400, 
+          status: 200, 
           headers: { 
-            'Content-Type': 'application/json'
+            'Content-Type': 'text/html'
           }
         }
       );
     }
     
-    // Encontrar a rede
     const network = MAINNET_NETWORKS.find(n => n.id.toString() === networkId);
     if (!network) {
       return new NextResponse(
-        JSON.stringify({ message: 'Invalid network' }),
+        `<!DOCTYPE html>
+        <html>
+          <head>
+            <meta property="fc:frame" content="vNext">
+            <meta property="fc:frame:image" content="/logo.png">
+            <meta property="fc:frame:title" content="Error">
+            <meta property="fc:frame:post_url" content="${req.nextUrl.origin}/api/frames/nft/action">
+            <meta property="fc:frame:button:1" content="Try Again">
+          </head>
+          <body>
+            <p>Error: Invalid network</p>
+          </body>
+        </html>`,
         { 
-          status: 400, 
+          status: 200, 
           headers: { 
-            'Content-Type': 'application/json'
+            'Content-Type': 'text/html'
           }
         }
       );
@@ -66,10 +95,8 @@ export async function POST(req: NextRequest) {
     
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin;
     
-    // Different actions based on button clicked
     switch (buttonId) {
       case "1": // Buy NFT
-        // Para botão com post_redirect devemos retornar um HTTP 302 Found com o location header
         const redirectUrl = `${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&tokenId=${tokenId}&action=buy`;
         
         // Retornando 302 Found com Location header conforme especificação de frames
@@ -115,21 +142,17 @@ export async function POST(req: NextRequest) {
             `<!DOCTYPE html>
             <html>
               <head>
-                <title>NFT Details - ${name}</title>
-                <!-- Requisitos de Frames conforme especificação -->
                 <meta property="fc:frame" content="vNext">
                 <meta property="fc:frame:title" content="NFT Details: ${name}">
                 <meta property="fc:frame:image" content="${image}">
                 <meta property="fc:frame:post_url" content="${baseUrl}/api/frames/nft/action">
                 
-                <!-- Botões de ação -->
                 <meta property="fc:frame:button:1" content="View in Marketplace">
                 <meta property="fc:frame:button:1:action" content="link">
                 <meta property="fc:frame:button:1:target" content="${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&tokenId=${tokenId}">
                 
                 <meta property="fc:frame:button:2" content="Share NFT">
                 
-                <!-- Estado passado entre frames -->
                 <meta property="fc:frame:state" content="${Buffer.from(JSON.stringify({
                   networkId,
                   contract,
@@ -154,13 +177,24 @@ export async function POST(req: NextRequest) {
         } catch (error) {
           console.error('Error fetching NFT details:', error);
           
-          // Retornar um erro em JSON conforme especificação
           return new NextResponse(
-            JSON.stringify({ message: 'Failed to fetch NFT details' }),
+            `<!DOCTYPE html>
+            <html>
+              <head>
+                <meta property="fc:frame" content="vNext">
+                <meta property="fc:frame:image" content="/logo.png">
+                <meta property="fc:frame:title" content="Error">
+                <meta property="fc:frame:post_url" content="${req.nextUrl.origin}/api/frames/nft/action">
+                <meta property="fc:frame:button:1" content="Try Again">
+              </head>
+              <body>
+                <p>Error: Failed to fetch NFT details</p>
+              </body>
+            </html>`,
             { 
-              status: 400, 
+              status: 200, 
               headers: { 
-                'Content-Type': 'application/json'
+                'Content-Type': 'text/html'
               }
             }
           );
@@ -194,16 +228,15 @@ export async function POST(req: NextRequest) {
             `<!DOCTYPE html>
             <html>
               <head>
-                <title>Share NFT - ${title}</title>
-                <!-- Requisitos de Frames conforme especificação -->
                 <meta property="fc:frame" content="vNext">
                 <meta property="fc:frame:title" content="Share this NFT">
                 <meta property="fc:frame:image" content="${image}">
-                <!-- Button principal com ação link para abrir link externo sem POST -->
+                <meta property="fc:frame:post_url" content="${baseUrl}/api/frames/nft/action">
+                
                 <meta property="fc:frame:button:1" content="Share on Warpcast">
                 <meta property="fc:frame:button:1:action" content="link">
                 <meta property="fc:frame:button:1:target" content="${warpcastUrl}">
-                <!-- Estado passado entre frames -->
+                
                 <meta property="fc:frame:state" content="${Buffer.from(JSON.stringify({
                   networkId,
                   contract,
@@ -226,27 +259,50 @@ export async function POST(req: NextRequest) {
         } catch (error) {
           console.error('Error fetching NFT data for sharing:', error);
           
-          // Em caso de erro, retornar uma resposta de erro conforme especificação
+          // CORREÇÃO: Retornar HTML em vez de JSON
           return new NextResponse(
-            JSON.stringify({ message: 'Failed to prepare sharing data' }),
+            `<!DOCTYPE html>
+            <html>
+              <head>
+                <meta property="fc:frame" content="vNext">
+                <meta property="fc:frame:image" content="/logo.png">
+                <meta property="fc:frame:title" content="Error">
+                <meta property="fc:frame:post_url" content="${req.nextUrl.origin}/api/frames/nft/action">
+                <meta property="fc:frame:button:1" content="Try Again">
+              </head>
+              <body>
+                <p>Error: Failed to prepare sharing data</p>
+              </body>
+            </html>`,
             { 
-              status: 400, 
+              status: 200, 
               headers: { 
-                'Content-Type': 'application/json'
+                'Content-Type': 'text/html'
               }
             }
           );
         }
         
       default:
-        // Botão desconhecido - tratar como erro conforme especificação de frames
-        // Deve retornar um erro em formato JSON com status 4XX
+        // CORREÇÃO: Retornar HTML em vez de JSON
         return new NextResponse(
-          JSON.stringify({ message: 'Invalid button selection' }),
+          `<!DOCTYPE html>
+          <html>
+            <head>
+              <meta property="fc:frame" content="vNext">
+              <meta property="fc:frame:image" content="/logo.png">
+              <meta property="fc:frame:title" content="Error">
+              <meta property="fc:frame:post_url" content="${req.nextUrl.origin}/api/frames/nft/action">
+              <meta property="fc:frame:button:1" content="Try Again">
+            </head>
+            <body>
+              <p>Error: Invalid button selection</p>
+            </body>
+          </html>`,
           { 
-            status: 400, 
+            status: 200, 
             headers: { 
-              'Content-Type': 'application/json'
+              'Content-Type': 'text/html'
             }
           }
         );
@@ -259,18 +315,13 @@ export async function POST(req: NextRequest) {
       `<!DOCTYPE html>
       <html>
         <head>
-          <title>Error</title>
-          <!-- Requisitos de Frames conforme especificação -->
           <meta property="fc:frame" content="vNext">
           <meta property="fc:frame:title" content="Error">
           <meta property="fc:frame:image" content="/logo.png">
           <meta property="fc:frame:post_url" content="${process.env.NEXT_PUBLIC_BASE_URL || new URL(req.url).origin}/api/frames/nft/action">
           
-          <!-- Botão para tentar novamente -->
           <meta property="fc:frame:button:1" content="Try Again">
-          <meta property="fc:frame:button:1:action" content="post">
           
-          <!-- Estado passado entre frames - sem tokenId para forçar um frame inicial novo -->
           <meta property="fc:frame:state" content="${Buffer.from(JSON.stringify({
             action: 'error'
           })).toString('base64')}">
