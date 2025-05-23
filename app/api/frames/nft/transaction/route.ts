@@ -1,4 +1,5 @@
 import { prepareFramePurchaseTransaction } from '@/lib/services/frameTransactions';
+import { extractNFTParamsFromURL, formatFrameTransaction } from '@/lib/services/farcasterUtils';
 import { MAINNET_NETWORKS } from '@/lib/services/mainnetReservoir';
 import { logFrameRequestDetails, logTransactionPreparation } from '@/lib/utils/frameLogging';
 import { NextRequest, NextResponse } from 'next/server';
@@ -87,12 +88,12 @@ export async function GET(req: NextRequest) {
       // Return transaction data in the format expected by Farcaster Frame
       // The chainId must include the eip155: prefix
       // see: https://docs.farcaster.xyz/reference/frames/spec#transaction-button-action
-      const transactionData = {
-        chainId: `eip155:${purchaseData.txInfo.chainId}`,
-        to: purchaseData.txInfo.to,
-        data: purchaseData.txInfo.data,
-        value: purchaseData.txInfo.value
-      };
+      const transactionData = formatFrameTransaction(
+        purchaseData.txInfo.chainId,
+        purchaseData.txInfo.to,
+        purchaseData.txInfo.data,
+        purchaseData.txInfo.value
+      );
       
       console.log('Returning transaction data to Farcaster:', {
         chainId: transactionData.chainId,
@@ -157,12 +158,30 @@ export async function GET(req: NextRequest) {
       value
     });
 
-    // Return the transaction data in the format expected by Farcaster Frame
-    return NextResponse.json({
-      chainId: `eip155:${chainId}`,
-      to: toAddress,
+    // Format and return the transaction data in the format expected by Farcaster Frame
+    const transactionData = formatFrameTransaction(
+      chainId,
+      toAddress,
       data,
       value
+    );
+
+    console.log('Returning fallback transaction data to Farcaster:', {
+      chainId: transactionData.chainId,
+      to: transactionData.to,
+      dataLength: transactionData.data.length,
+      value: transactionData.value
+    });
+    
+    // Add special debugging headers 
+    return NextResponse.json(transactionData, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json',
+        'X-Frame-Transaction': 'true',
+        'X-Chain-Id': transactionData.chainId,
+        'X-Transaction-To': transactionData.to
+      }
     });
   } catch (error) {
     console.error('Error generating transaction data:', error instanceof Error ? error.message : String(error));

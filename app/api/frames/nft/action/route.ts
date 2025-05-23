@@ -2,21 +2,16 @@ import { prepareFramePurchaseTransaction } from '@/lib/services/frameTransaction
 import { MAINNET_NETWORKS } from '@/lib/services/mainnetReservoir';
 import { trackReservoirTransaction } from '@/lib/services/reservoirTx';
 import { extractWalletFromFrameData, verifySignature } from '@/lib/utils/signatureVerification';
+import { logFrameRequestDetails } from '@/lib/utils/frameLogging';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    // Log complete request information for debugging
-    console.log('Frame action request received:');
-    console.log('- Method:', req.method);
-    console.log('- URL:', req.url);
-    
-    // Log headers safely
-    const headers: Record<string, string> = {};
-    req.headers.forEach((value, key) => {
-      headers[key] = value;
+    // Enhanced logging for Farcaster Frame requests
+    await logFrameRequestDetails(req, {
+      endpoint: 'action',
+      type: 'nft-purchase-action'
     });
-    console.log('- Headers:', JSON.stringify(headers, null, 2));
     
     let stateBase64: string = '';
     let buttonId: string = '';
