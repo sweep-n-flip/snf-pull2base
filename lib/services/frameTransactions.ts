@@ -77,19 +77,18 @@ export async function prepareFramePurchaseTransaction(
     // 2. Preparar dados da transação
     const orderId = nft.market.floorAsk.id;
     
-    // Use the wallet placeholder in a format Warpcast/Farcaster can use
-    // For Farcaster Frame, use ${userAddress} as placeholder for the user's wallet
-    // This enables direct wallet integration in frames
-    const effectiveAddress = userAddress && userAddress.startsWith('0x') 
-      ? userAddress 
-      : "${userAddress}"; // Use Farcaster variable format for wallet injection
-      
-    console.log(`Using address for transaction: ${effectiveAddress}`);
+    console.log('Preparing transaction with parameters:', {
+      network: network.name,
+      orderId,
+      userAddress,
+      baseUrl,
+      usingWalletPlaceholder: !userAddress || userAddress.includes('${WALLET}') || userAddress.includes('fid:')
+    });
     
     const txData = await getReservoirExecuteData(network, {
       orderId: orderId,
       quantity: 1,
-      taker: effectiveAddress,
+      taker: userAddress || "${WALLET}", // Use Farcaster's transaction action placeholder standard
       source: "pull2base-frame",
       referrer: baseUrl
     });
@@ -97,6 +96,9 @@ export async function prepareFramePurchaseTransaction(
     if (!txData || !txData.txUrl) {
       throw new Error('Failed to prepare transaction');
     }
+    
+    // Log the transaction URL for debugging
+    console.log('Generated transaction URL:', txData.txUrl);
     
     // 3. Retornar dados formatados para uso no Frame
     return {

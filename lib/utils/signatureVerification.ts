@@ -1,19 +1,3 @@
-// Importing NodeJS Buffer for decoding base64
-import { Buffer } from 'buffer';
-
-/**
- * Interface for parsed Farcaster message data
- */
-export interface FarcasterMessageData {
-  verified: boolean;
-  message?: {
-    fid?: number;
-    address?: string;
-    custodyAddress?: string;
-    wallets?: Array<{ address: string; chain: string }>;
-  };
-  raw: string;
-}
 
 /**
  * Verifies the signature of trusted data from Farcaster frames.
@@ -45,69 +29,109 @@ export async function verifySignature(trustedData: string | undefined): Promise<
 }
 
 /**
- * Extracts wallet address from Farcaster Frame trusted data
+ * Extract wallet information from Farcaster Frame message bytes.
+ * This is a simplified implementation for Farcaster protocol.
  * 
- * @param trustedData Base64 encoded trusted data from Farcaster
- * @returns Wallet address if found, or null
+ * @param trustedData The trusted data containing message bytes
+ * @param untrustedData Optional untrusted data to use as fallback
+ * @returns The wallet address if found, or null if not
  */
-export async function extractWalletFromTrustedData(trustedData: string | undefined): Promise<string | null> {
-  if (!trustedData) {
-    console.log('No trusted data provided for wallet extraction');
-    return null;
-  }
-
+export async function extractWalletFromFrameData(
+  trustedData: any, 
+  untrustedData: any
+): Promise<string | null> {
   try {
-    // Try to decode as base64
-    let decodedData: any;
-    try {
-      // First attempt to decode the base64 string
-      const decoded = Buffer.from(trustedData, 'base64').toString();
-      decodedData = JSON.parse(decoded);
-      console.log('Successfully decoded trusted data from base64');
-    } catch (e) {
-      // If not base64, try parsing as JSON directly
-      try {
-        decodedData = JSON.parse(trustedData);
-        console.log('Parsed trusted data directly as JSON');
-      } catch (jsonError) {
-        console.log('Could not parse trusted data as JSON');
-        // Keep the original data
-        decodedData = trustedData;
+    // Log data for debugging
+    console.log('Trusted data structure:', 
+      typeof trustedData === 'string' 
+        ? `"${trustedData.substring(0, 100)}..."` 
+        : JSON.stringify(trustedData));
+
+    // First try: Check if there's a connected address directly
+    // This is the easiest path if the client provides it
+    if (untrustedData?.connectedAddress) {
+      if (typeof untrustedData.connectedAddress === 'string' && untrustedData.connectedAddress.startsWith('0x')) {
+        console.log('Found wallet in untrustedData.connectedAddress:', untrustedData.connectedAddress);
+        return untrustedData.connectedAddress;
       }
     }
 
-    // Log structure for debugging
-    console.log('Trusted data structure:', JSON.stringify(decodedData, null, 2).substring(0, 500));
-
-    // Extract wallet address from various possible locations
-    if (typeof decodedData === 'object' && decodedData !== null) {
-      // Check common Farcaster custody address locations
-      if (decodedData.custodyAddress && typeof decodedData.custodyAddress === 'string' && 
-          decodedData.custodyAddress.startsWith('0x')) {
-        return decodedData.custodyAddress;
+    // Second try: Check if wallet address is already available in trusted data
+    if (typeof trustedData === 'object' && trustedData !== null) {
+      // Farcaster might provide the connected wallet directly
+      if (trustedData.custody_address && typeof trustedData.custody_address === 'string' && 
+          trustedData.custody_address.startsWith('0x')) {
+        console.log('Found wallet in trusted data custody_address:', trustedData.custody_address);
+        return trustedData.custody_address;
       }
+      
+      // Check for wallet in trusted data message
+      if (trustedData.message && trustedData.message.wallet) {
+        console.log('Found wallet in trusted message:', trustedData.message.wallet);
+        return trustedData.message.wallet;
+      }
+      
+      // Directly check for Warpcast connected accounts
+      if (trustedData.connectedAddresses && Array.isArray(trustedData.connectedAddresses)) {
+        for (const addr of trustedData.connectedAddresses) {
+          if (typeof addr === 'string' && addr.startsWith('0x')) {
+            console.log('Found wallet in trustedData.connectedAddresses:', addr);
+            return addr;
+          }
+        }
+      }
+    }
 
-      // Check for embedded message data
-      if (decodedData.message && typeof decodedData.message === 'object') {
-        if (decodedData.message.custodyAddress && 
-            typeof decodedData.message.custodyAddress === 'string' && 
-            decodedData.message.custodyAddress.startsWith('0x')) {
-          return decodedData.message.custodyAddress;
+    // Farcaster Frame Protocol 
+    // Unfortunately, we can't directly parse the protobuf format without proper libraries
+    // In production, you would use the @farcaster/core library to decode the message
+
+    // Fallback - Check untrusted data for a wallet address
+    if (untrustedData) {
+      // Normalized untrusted data object
+      let normalizedData = untrustedData;
+      if (typeof untrustedData === 'string') {
+        try {
+          normalizedData = JSON.parse(untrustedData);
+        } catch (e) {
+          // Not JSON, keep as is
         }
       }
 
-      // Check for wallet info
-      if (decodedData.walletAddress && typeof decodedData.walletAddress === 'string' && 
-          decodedData.walletAddress.startsWith('0x')) {
-        return decodedData.walletAddress;
+      // Log the untrusted data we're checking
+      console.log('Looking for wallet in untrusted data:', typeof normalizedData);
+      
+      if (typeof normalizedData === 'object' && normalizedData !== null) {
+        // Check for connected wallet address in different locations
+        
+        // Direct properties
+        if (normalizedData.wallets && Array.isArray(normalizedData.wallets)) {
+          for (const wallet of normalizedData.wallets) {
+            if (wallet && wallet.address && typeof wallet.address === 'string' && wallet.address.startsWith('0x')) {
+              console.log('Found wallet in untrustedData.wallets array:', wallet.address);
+              return wallet.address;
+            }
+          }
+        }
+        
+        // Look for FID to use as alternative identifier
+        const fid = normalizedData.fid ? 
+          (typeof normalizedData.fid === 'object' ? normalizedData.fid.id : normalizedData.fid) : 
+          null;
+          
+        if (fid) {
+          console.log('Found FID in untrusted data:', fid);
+          // We could use FID as a key in a database to lookup associated wallets
+          // For now, we'll return null to indicate we found an FID but no wallet
+        }
       }
     }
 
-    // If we couldn't find an address in trusted data
-    console.log('No wallet address found in trusted data');
+    // No wallet found
+    console.log('No wallet address found in trusted or untrusted data');
     return null;
   } catch (error) {
-    console.error('Error extracting wallet from trusted data:', error instanceof Error ? error.message : String(error));
+    console.error('Error extracting wallet address:', error instanceof Error ? error.message : String(error));
     return null;
   }
 }

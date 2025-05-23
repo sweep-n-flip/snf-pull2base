@@ -1,7 +1,7 @@
 import { prepareFramePurchaseTransaction } from '@/lib/services/frameTransactions';
 import { MAINNET_NETWORKS } from '@/lib/services/mainnetReservoir';
 import { trackReservoirTransaction } from '@/lib/services/reservoirTx';
-import { extractWalletFromTrustedData, verifySignature } from '@/lib/utils/signatureVerification';
+import { extractWalletFromFrameData, verifySignature } from '@/lib/utils/signatureVerification';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
@@ -147,6 +147,17 @@ export async function POST(req: NextRequest) {
     
     // Extract user data from frame interaction
     let userAddress = '';
+    let userFid = '';  // Add Farcaster ID for fallback identification
+    
+    // Try to extract FID from untrusted data first (more reliable than wallet address)
+    if (parsedUntrustedData && typeof parsedUntrustedData === 'object') {
+      if (parsedUntrustedData.fid) {
+        userFid = typeof parsedUntrustedData.fid === 'object' 
+          ? String(parsedUntrustedData.fid.id || parsedUntrustedData.fid)
+          : String(parsedUntrustedData.fid);
+        console.log('Found user FID:', userFid);
+      }
+    }
     
     if (trustedData) {
       try {
@@ -157,16 +168,37 @@ export async function POST(req: NextRequest) {
         }
         console.log('Trusted data verified successfully');
         
-        // Extract wallet address from trusted data
         try {
-          // Try to get the wallet address from trusted data
-          const walletAddress = await extractWalletFromTrustedData(trustedData);
+          // Parse the trusted data as JSON first to see if it's directly usable
+          try {
+            const parsedTrustedData = JSON.parse(trustedData);
+            console.log('Successfully parsed trusted data as JSON');
+            
+            // Check if we have custody address directly in the parsed data
+            if (parsedTrustedData.custody_address && 
+                parsedTrustedData.custody_address.startsWith('0x')) {
+              userAddress = parsedTrustedData.custody_address;
+              console.log('Found wallet address in trusted data:', userAddress);
+            }
+          } catch (e) {
+            console.log('Could not parse trusted data as JSON:', e);
+          }
           
-          if (walletAddress) {
-            userAddress = walletAddress;
-            console.log('Successfully extracted wallet address from trusted data:', userAddress);
-          } else {
-            console.log('No wallet address found in trusted data');
+          // If we still don't have an address, try to decode the message bytes
+          if (!userAddress) {
+            console.log('Trying to extract wallet from frame data');
+            // Use our utility to extract the wallet from the data
+            const extractedAddress = await extractWalletFromFrameData(
+              typeof trustedData === 'object' && trustedData !== null && 'messageBytes' in trustedData 
+                ? trustedData 
+                : { messageBytes: trustedData }, 
+              parsedUntrustedData
+            );
+            
+            if (extractedAddress) {
+              userAddress = extractedAddress;
+              console.log('Successfully extracted wallet address:', userAddress);
+            }
           }
         } catch (err) {
           console.log('Could not extract custody address from trusted data:', err);
@@ -361,11 +393,30 @@ export async function POST(req: NextRequest) {
     // Capture transaction hash from callback - use URL parameter if available
     let capturedTxHash = '';
     try {
+      // Check URL parameters first
       if (req.nextUrl.searchParams.has('txHash')) {
         capturedTxHash = req.nextUrl.searchParams.get('txHash') || '';
+        console.log('Found txHash in URL parameters:', capturedTxHash);
       }
       
-      if (buttonId === '1' && action === 'tx_callback' && capturedTxHash) {
+      // Check if it's in the untrustedData from newer Farcaster Frames
+      if (parsedUntrustedData && typeof parsedUntrustedData === 'object') {
+        if (parsedUntrustedData.transactionId && typeof parsedUntrustedData.transactionId === 'string') {
+          capturedTxHash = parsedUntrustedData.transactionId;
+          console.log('Found txHash in untrustedData.transactionId:', capturedTxHash);
+        } else if (parsedUntrustedData.txHash && typeof parsedUntrustedData.txHash === 'string') {
+          capturedTxHash = parsedUntrustedData.txHash;
+          console.log('Found txHash in untrustedData.txHash:', capturedTxHash);
+        } else if (parsedUntrustedData.transaction && typeof parsedUntrustedData.transaction === 'object') {
+          if (parsedUntrustedData.transaction.hash) {
+            capturedTxHash = parsedUntrustedData.transaction.hash;
+            console.log('Found txHash in untrustedData.transaction.hash:', capturedTxHash);
+          }
+        }
+      }
+      
+      // Store the transaction hash in state for tracking
+      if (capturedTxHash) {
         console.log('Captured transaction hash:', capturedTxHash);
         state.txHash = capturedTxHash;
       }
@@ -650,8 +701,9 @@ export async function POST(req: NextRequest) {
             throw new Error('Missing required network, contract or tokenId for purchase');
           }
           
-          // If user address is missing, use a fallback or placeholder
-          const buyerAddress = userAddress || '0x0000000000000000000000000000000000000000'; 
+          // If user address is missing, use FID or fallback
+          const buyerAddress = userAddress || (userFid ? `fid:${userFid}` : '${WALLET}');
+          console.log('Using buyer address or placeholder:', buyerAddress);
           
           // Use the new transaction preparation service
           const purchaseData = await prepareFramePurchaseTransaction(
@@ -688,9 +740,9 @@ export async function POST(req: NextRequest) {
                   
                   <!-- Purchase button with wallet -->
                   <meta property="fc:frame:button:1" content="Sign Purchase (${priceDisplay} ${purchaseData.currency})">
-                  <meta property="fc:frame:button:1:action" content="tx">
+                  <meta property="fc:frame:button:1:action" content="transaction">
                   <meta property="fc:frame:button:1:target" content="${purchaseData.txUrl}">
-                  <meta property="fc:frame:button:1:callback" content="${req.nextUrl.origin}/api/frames/nft/action">
+                  <meta property="fc:frame:button:1:post_url" content="${req.nextUrl.origin}/api/frames/nft/action">
                   
                   <!-- Helper buttons -->
                   <meta property="fc:frame:button:2" content="Open in Marketplace">
