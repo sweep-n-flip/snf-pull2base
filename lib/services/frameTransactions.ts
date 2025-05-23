@@ -83,18 +83,28 @@ export async function prepareFramePurchaseTransaction(
     // 2. Preparar dados da transação
     const orderId = nft.market.floorAsk.id;
     
+    // Determine if we need to use the wallet placeholder
+    // Either explicit placeholder, FID format, or missing wallet
+    const usingWalletPlaceholder = !userAddress || 
+      userAddress === '${WALLET}' || 
+      userAddress.includes('fid:');
+      
+    // Use the exact placeholder format Farcaster expects
+    const takerAddress = usingWalletPlaceholder ? '${WALLET}' : userAddress;
+    
     console.log('Preparing transaction with parameters:', {
       network: network.name,
       orderId,
-      userAddress,
+      requestedAddress: userAddress,
+      effectiveAddress: takerAddress,
       baseUrl,
-      usingWalletPlaceholder: !userAddress || userAddress.includes('${WALLET}') || userAddress.includes('fid:')
+      usingWalletPlaceholder
     });
     
     const txData = await getReservoirExecuteData(network, {
       orderId: orderId,
       quantity: 1,
-      taker: userAddress || "${WALLET}", // Use Farcaster's transaction action placeholder standard
+      taker: takerAddress, // Use Farcaster's transaction action placeholder standard
       source: "pull2base-frame",
       referrer: baseUrl
     });

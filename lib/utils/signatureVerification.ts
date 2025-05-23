@@ -29,11 +29,11 @@ export async function verifySignature(trustedData: string | undefined): Promise<
 
 /**
  * Extract wallet information from Farcaster Frame message bytes.
- * This is a simplified implementation for Farcaster protocol.
+ * This implementation handles various Farcaster/Warpcast data formats.
  * 
  * @param trustedData The trusted data containing message bytes
  * @param untrustedData Optional untrusted data to use as fallback
- * @returns The wallet address if found, or null if not
+ * @returns The wallet address if found, ${WALLET} placeholder, or null
  */
 export async function extractWalletFromFrameData(
   trustedData: any, 
@@ -48,6 +48,25 @@ export async function extractWalletFromFrameData(
           if (typeof address === 'string' && address.startsWith('0x')) {
             console.log('Found address in connectedAddresses:', address);
             return address;
+          }
+        }
+      }
+      
+      // Check new transaction.from field (available in newer Farcaster versions)
+      if (untrustedData.transaction && untrustedData.transaction.from) {
+        const txFrom = untrustedData.transaction.from;
+        if (typeof txFrom === 'string' && txFrom.startsWith('0x')) {
+          console.log('Found address in transaction.from:', txFrom);
+          return txFrom;
+        }
+      }
+      
+      // Look in the wallets array (Warpcast format)
+      if (untrustedData.wallets && Array.isArray(untrustedData.wallets)) {
+        for (const wallet of untrustedData.wallets) {
+          if (wallet && wallet.address && typeof wallet.address === 'string' && wallet.address.startsWith('0x')) {
+            console.log('Found address in wallets array:', wallet.address);
+            return wallet.address;
           }
         }
       }
@@ -76,18 +95,20 @@ export async function extractWalletFromFrameData(
         }
       }
       
-      // If we have FID but no wallet, we can fallback to a placeholder
+      // If we have FID but no wallet, we can use the Farcaster placeholder
       if (untrustedData.fid) {
-        console.log('No wallet found, but have FID:', untrustedData.fid);
-        // In production you might want to look up FID to wallet mappings in a database
-        // For now, return null to indicate we need a placeholder
+        console.log('No wallet address found, but have FID:', untrustedData.fid);
+        console.log('Using ${WALLET} placeholder for Farcaster transaction');
+        return '${WALLET}'; // Return the Farcaster placeholder
       }
     }
     
-    // Further processing as needed...
-    return null;
+    // If no wallet address or FID was found, use the Farcaster placeholder as fallback
+    console.log('No wallet information found, defaulting to ${WALLET} placeholder');
+    return '${WALLET}';
   } catch (error) {
     console.error('Error extracting wallet:', error);
-    return null;
+    // In case of errors, default to the placeholder to prevent transaction failures
+    return '${WALLET}';
   }
 }
