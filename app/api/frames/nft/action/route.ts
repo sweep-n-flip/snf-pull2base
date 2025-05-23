@@ -1,7 +1,7 @@
 import { prepareFramePurchaseTransaction } from '@/lib/services/frameTransactions';
 import { MAINNET_NETWORKS } from '@/lib/services/mainnetReservoir';
 import { trackReservoirTransaction } from '@/lib/services/reservoirTx';
-import { verifySignature } from '@/lib/utils/signatureVerification';
+import { extractWalletFromTrustedData, verifySignature } from '@/lib/utils/signatureVerification';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
@@ -156,6 +156,21 @@ export async function POST(req: NextRequest) {
           throw new Error('Invalid signature in trusted data');
         }
         console.log('Trusted data verified successfully');
+        
+        // Extract wallet address from trusted data
+        try {
+          // Try to get the wallet address from trusted data
+          const walletAddress = await extractWalletFromTrustedData(trustedData);
+          
+          if (walletAddress) {
+            userAddress = walletAddress;
+            console.log('Successfully extracted wallet address from trusted data:', userAddress);
+          } else {
+            console.log('No wallet address found in trusted data');
+          }
+        } catch (err) {
+          console.log('Could not extract custody address from trusted data:', err);
+        }
       } catch (error) {
         console.error('Error verifying trusted data:', error instanceof Error ? error.message : String(error));
       }
@@ -196,6 +211,17 @@ export async function POST(req: NextRequest) {
               if (addr && typeof addr === 'string' && addr.startsWith('0x')) {
                 userAddress = addr;
                 console.log('Found user address in connectedAddresses:', userAddress);
+                break;
+              }
+            }
+          }
+          
+          // New Warpcast format - check for wallets object
+          if (!userAddress && parsedData.wallets && Array.isArray(parsedData.wallets)) {
+            for (const wallet of parsedData.wallets) {
+              if (wallet && wallet.address && typeof wallet.address === 'string' && wallet.address.startsWith('0x')) {
+                userAddress = wallet.address;
+                console.log('Found user address in wallets array:', userAddress);
                 break;
               }
             }

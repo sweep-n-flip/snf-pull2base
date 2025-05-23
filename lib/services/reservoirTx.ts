@@ -84,7 +84,8 @@ export async function getReservoirExecuteData(
     
     // Formatar URL para o frame Farcaster
     // ethereum:{contract-address}@{chain-id}/call?data={data}&value={value}
-    const txUrl = `ethereum:${txData.to}@${network.chainId}/call?data=${txData.data}&value=${txData.value || 0}`;
+    // For Farcaster Frames, need to ensure the URL is properly formatted for the tx button
+    const txUrl = `ethereum:${txData.to}@${network.chainId}/call?data=${encodeURIComponent(txData.data)}&value=${txData.value || 0}`;
     
     return {
       txUrl,
