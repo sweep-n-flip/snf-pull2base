@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
           <!-- Frame metadata -->
           <meta property="fc:frame" content="vNext">
           <meta property="fc:frame:image" content="${fullImageUrl}">
-          <meta property="fc:frame:post_url" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/action?network=${networkId}&contract=${contract}&tokenId=${tokenId}">
+          <meta property="fc:frame:post_url" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/action">
           
           <meta property="fc:frame:title" content="${title}">
           <meta property="fc:frame:button:1" content="Buy NFT (${priceDisplay})">
@@ -114,8 +114,6 @@ export async function GET(req: NextRequest) {
           <meta property="fc:frame:button:2" content="Details">
           <meta property="fc:frame:button:2:action" content="link">
           <meta property="fc:frame:button:2:target" content="${buyUrl}">
-          
-          <!-- Required for Farcaster frame validation -->
           <meta property="fc:frame:requires_signature" content="true">
           
           <meta property="fc:frame:state" content="${Buffer.from(JSON.stringify({
