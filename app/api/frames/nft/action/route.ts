@@ -1,8 +1,8 @@
 import { prepareFramePurchaseTransaction } from '@/lib/services/frameTransactions';
 import { MAINNET_NETWORKS } from '@/lib/services/mainnetReservoir';
 import { trackReservoirTransaction } from '@/lib/services/reservoirTx';
-import { extractWalletFromFrameData, verifySignature } from '@/lib/utils/signatureVerification';
 import { logFrameRequestDetails } from '@/lib/utils/frameLogging';
+import { extractWalletFromFrameData, verifySignature } from '@/lib/utils/signatureVerification';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
