@@ -85,8 +85,6 @@ export async function prepareFramePurchaseTransaction(
     
     console.log('Preparing transaction with parameters:', {
       network: network.name,
-      networkId: network.id,
-      chainId: network.chainId,
       orderId,
       userAddress,
       baseUrl,

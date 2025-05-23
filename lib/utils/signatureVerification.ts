@@ -40,23 +40,8 @@ export async function extractWalletFromFrameData(
   untrustedData: any
 ): Promise<string | null> {
   try {
-    console.log('Extracting wallet from frame data:', {
-      hasTrustedData: !!trustedData,
-      untrustedDataKeys: untrustedData ? Object.keys(untrustedData) : []
-    });
-
     // Check Farcaster Frame-specific formats first
     if (untrustedData) {
-      // Check for interactor wallet, which is commonly available
-      if (untrustedData.interactor?.verified_accounts) {
-        for (const account of untrustedData.interactor.verified_accounts) {
-          if (account?.startsWith('0x')) {
-            console.log('Found address in interactor.verified_accounts:', account);
-            return account;
-          }
-        }
-      }
-      
       // Look for direct connected accounts
       if (untrustedData.connectedAddresses && Array.isArray(untrustedData.connectedAddresses)) {
         for (const address of untrustedData.connectedAddresses) {
@@ -95,27 +80,14 @@ export async function extractWalletFromFrameData(
       if (untrustedData.fid) {
         console.log('No wallet found, but have FID:', untrustedData.fid);
         // In production you might want to look up FID to wallet mappings in a database
-      }
-      
-      // Check for owner_address in untrusted data
-      if (untrustedData.owner_address && untrustedData.owner_address.startsWith('0x')) {
-        console.log('Found address in owner_address:', untrustedData.owner_address);
-        return untrustedData.owner_address;
-      }
-      
-      // Check for direct walletAddress field
-      if (untrustedData.walletAddress && untrustedData.walletAddress.startsWith('0x')) {
-        console.log('Found address in walletAddress field:', untrustedData.walletAddress);
-        return untrustedData.walletAddress;
+        // For now, return null to indicate we need a placeholder
       }
     }
     
-    // For transaction endpoints, we'll use ${WALLET} placeholder
-    // which will be replaced by Farcaster with the actual wallet address
-    console.log('No wallet address found in frame data - using ${WALLET} placeholder for transaction endpoint');
-    return '${WALLET}';
+    // Further processing as needed...
+    return null;
   } catch (error) {
     console.error('Error extracting wallet:', error);
-    return '${WALLET}';
+    return null;
   }
 }

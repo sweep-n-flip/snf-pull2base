@@ -1,20 +1,23 @@
-import { formatFrameTransaction } from '@/lib/services/farcasterUtils';
 import { prepareFramePurchaseTransaction } from '@/lib/services/frameTransactions';
 import { MAINNET_NETWORKS } from '@/lib/services/mainnetReservoir';
-import { logFrameRequestDetails, logTransactionPreparation } from '@/lib/utils/frameLogging';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
   try {
-    // Enhanced logging for Farcaster Frame requests
-    await logFrameRequestDetails(req, {
-      endpoint: 'transaction',
-      transactionType: 'nft-purchase'
+    // Log complete request for debugging
+    console.log('Transaction endpoint called:');
+    console.log('- Method:', req.method);
+    console.log('- URL:', req.url);
+    
+    // Log headers safely
+    const headers: Record<string, string> = {};
+    req.headers.forEach((value, key) => {
+      headers[key] = value;
     });
+    console.log('- Headers:', JSON.stringify(headers, null, 2));
     
     // Get query parameters
     const searchParams = req.nextUrl.searchParams;
-    console.log('- Search parameters:', Object.fromEntries(searchParams.entries()));
     const networkId = searchParams.get('network') || '';
     const contract = searchParams.get('contract') || '';
     const tokenId = searchParams.get('tokenId') || '';
@@ -37,27 +40,14 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // In transaction endpoints for Farcaster, we use ${WALLET} placeholder
-    // which will be replaced by the Farcaster protocol with the actual user wallet
-    
     // Get transaction data from your Reservoir service
     const purchaseData = await prepareFramePurchaseTransaction(
       network,
       contract,
       tokenId,
-      '${WALLET}', // This is the correct format for Farcaster transaction endpoint
+      '${WALLET}', // Farcaster will replace this placeholder with the actual wallet address
       req.nextUrl.origin
     );
-    
-    // Enhanced transaction preparation logging
-    logTransactionPreparation(network.name, contract, tokenId, {
-      networkId: network.id,
-      chainId: network.chainId,
-      success: purchaseData.success,
-      hasError: !!purchaseData.error,
-      hasTxInfo: !!purchaseData.txInfo,
-      origin: req.nextUrl.origin
-    });
     
     if (!purchaseData.success) {
       console.error('Failed to prepare transaction data:', purchaseData.error);
@@ -86,14 +76,12 @@ export async function GET(req: NextRequest) {
       });
       
       // Return transaction data in the format expected by Farcaster Frame
-      // The chainId must include the eip155: prefix
-      // see: https://docs.farcaster.xyz/reference/frames/spec#transaction-button-action
-      const transactionData = formatFrameTransaction(
-        purchaseData.txInfo.chainId,
-        purchaseData.txInfo.to,
-        purchaseData.txInfo.data,
-        purchaseData.txInfo.value
-      );
+      const transactionData = {
+        chainId: `eip155:${purchaseData.txInfo.chainId}`,
+        to: purchaseData.txInfo.to,
+        data: purchaseData.txInfo.data,
+        value: purchaseData.txInfo.value
+      };
       
       console.log('Returning transaction data to Farcaster:', {
         chainId: transactionData.chainId,
@@ -102,14 +90,10 @@ export async function GET(req: NextRequest) {
         value: transactionData.value
       });
       
-      // Add special debugging headers that might help trace issues
       return NextResponse.json(transactionData, {
         headers: {
           'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json',
-          'X-Frame-Transaction': 'true',
-          'X-Chain-Id': transactionData.chainId,
-          'X-Transaction-To': transactionData.to
+          'Content-Type': 'application/json'
         }
       });
     }
@@ -158,30 +142,12 @@ export async function GET(req: NextRequest) {
       value
     });
 
-    // Format and return the transaction data in the format expected by Farcaster Frame
-    const transactionData = formatFrameTransaction(
-      chainId,
-      toAddress,
+    // Return the transaction data in the format expected by Farcaster Frame
+    return NextResponse.json({
+      chainId: `eip155:${chainId}`,
+      to: toAddress,
       data,
       value
-    );
-
-    console.log('Returning fallback transaction data to Farcaster:', {
-      chainId: transactionData.chainId,
-      to: transactionData.to,
-      dataLength: transactionData.data.length,
-      value: transactionData.value
-    });
-    
-    // Add special debugging headers 
-    return NextResponse.json(transactionData, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json',
-        'X-Frame-Transaction': 'true',
-        'X-Chain-Id': transactionData.chainId,
-        'X-Transaction-To': transactionData.to
-      }
     });
   } catch (error) {
     console.error('Error generating transaction data:', error instanceof Error ? error.message : String(error));
