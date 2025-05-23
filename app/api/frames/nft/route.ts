@@ -19,13 +19,13 @@ export async function GET(req: NextRequest) {
           <title>Invalid NFT Frame</title>
           <!-- OpenGraph tags para fallback -->
           <meta property="og:title" content="Invalid NFT Frame">
-          <meta property="og:image" content="/logo.png">
+          <meta property="og:image" content="${req.nextUrl.origin}/logo.png">
           <meta property="og:description" content="Please provide valid NFT parameters">
           
           <!-- Requisitos de Frames conforme especificação -->
           <meta property="fc:frame" content="vNext">
           <meta property="fc:frame:title" content="Invalid NFT Frame">
-          <meta property="fc:frame:image" content="/logo.png">
+          <meta property="fc:frame:image" content="${req.nextUrl.origin}/logo.png">
           <meta property="fc:frame:post_url" content="${req.nextUrl.origin}/api/frames/nft/action">
           
           <!-- Botão para tentar novamente -->
@@ -88,6 +88,9 @@ export async function GET(req: NextRequest) {
     const title = collection ? `${name} from ${collection}` : name || `NFT #${tokenId}`;
     const priceDisplay = priceData ? `${priceData} ${currencyData}` : 'Not for sale';
     
+    // Ensure image URL is absolute
+    const fullImageUrl = image.startsWith('http') ? image : `${baseUrl}${image}`;
+    
     // HTML response with proper frame meta tags
     return new NextResponse(
       `<!DOCTYPE html>
@@ -95,13 +98,13 @@ export async function GET(req: NextRequest) {
         <head>
           <title>${title} - NFT Frame</title>
           <meta property="og:title" content="${title}">
-          <meta property="og:image" content="${image}">
+          <meta property="og:image" content="${fullImageUrl}">
           <meta property="og:description" content="${priceDisplay}">
           
           <!-- Frame metadata -->
           <meta property="fc:frame" content="vNext">
-          <meta property="fc:frame:image" content="${image}">
-          <meta property="fc:frame:post_url" content="${baseUrl}/api/frames/nft/action">
+          <meta property="fc:frame:image" content="${fullImageUrl}">
+          <meta property="fc:frame:post_url" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/action">
           
           <meta property="fc:frame:title" content="${title}">
           <meta property="fc:frame:button:1" content="Buy NFT (${priceDisplay})">
@@ -114,7 +117,7 @@ export async function GET(req: NextRequest) {
             contract,
             tokenId,
             action: 'initial',
-            image: image,
+            image: fullImageUrl,
             title: title
           })).toString('base64')}">
         </head>
@@ -140,11 +143,11 @@ export async function GET(req: NextRequest) {
         <head>
           <title>Error Loading NFT</title>
           <meta property="og:title" content="Error Loading NFT">
-          <meta property="og:image" content="/logo.png">
+          <meta property="og:image" content="${req.nextUrl.origin}/logo.png">
           <meta property="og:description" content="Failed to load NFT data. Please try again.">
           
           <meta property="fc:frame" content="vNext">
-          <meta property="fc:frame:image" content="/logo.png">
+          <meta property="fc:frame:image" content="${req.nextUrl.origin}/logo.png">
           <meta property="fc:frame:title" content="Error Loading NFT">
           <meta property="fc:frame:post_url" content="${req.nextUrl.origin}/api/frames/nft/action">
           <meta property="fc:frame:button:1" content="Try Again">
