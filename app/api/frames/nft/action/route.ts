@@ -130,6 +130,21 @@ export async function POST(req: NextRequest) {
       hasTrustedData: !!trustedData,
       hasUntrustedData: !!untrustedData
     });
+    
+    // Properly parse untrustedData if it's a string
+    let parsedUntrustedData: any = null;
+    if (typeof untrustedData === 'string') {
+      try {
+        parsedUntrustedData = JSON.parse(untrustedData);
+        console.log('Successfully parsed untrustedData string to object');
+      } catch (err) {
+        console.log('untrustedData is not JSON parsable:', err);
+        parsedUntrustedData = untrustedData; // Keep as is
+      }
+    } else if (typeof untrustedData === 'object') {
+      parsedUntrustedData = untrustedData;
+    }
+    
     // Extract user data from frame interaction
     let userAddress = '';
     
@@ -314,7 +329,8 @@ export async function POST(req: NextRequest) {
       console.log('No state provided in request');
     }
     
-    const { networkId, contract, tokenId, action, txHash } = state;
+    // Extract values from state but use let so we can modify them if needed
+    let { networkId, contract, tokenId, action, txHash } = state;
 
     // Capture transaction hash from callback - use URL parameter if available
     let capturedTxHash = '';
@@ -464,17 +480,56 @@ export async function POST(req: NextRequest) {
     if (!networkId || !contract || !tokenId) {
       console.log('Missing essential parameters:', { networkId, contract, tokenId });
       
+      // First try to extract from parsedUntrustedData.url if available
+      if (typeof parsedUntrustedData === 'object' && parsedUntrustedData && parsedUntrustedData.url) {
+        try {
+          const frameUrl = new URL(parsedUntrustedData.url);
+          const frameParams = frameUrl.searchParams;
+          
+          const frameNetwork = frameParams.get('network');
+          const frameContract = frameParams.get('contract');
+          const frameTokenId = frameParams.get('tokenId');
+          
+          console.log('Found parameters in untrustedData.url:', { 
+            frameNetwork, 
+            frameContract, 
+            frameTokenId 
+          });
+          
+          if (frameNetwork && frameContract && frameTokenId) {
+            state.networkId = frameNetwork;
+            state.contract = frameContract;
+            state.tokenId = frameTokenId;
+            state.action = 'initial';
+            
+            // Update local variables for immediate use
+            networkId = frameNetwork;
+            contract = frameContract;
+            tokenId = frameTokenId;
+            
+            console.log('Using parameters from untrustedData.url');
+          }
+        } catch (err) {
+          console.error('Error extracting params from untrustedData.url:', err);
+        }
+      }
+      
       // Check URL parameters directly as fallback
       const urlNetwork = req.nextUrl.searchParams.get('network');
       const urlContract = req.nextUrl.searchParams.get('contract');
       const urlTokenId = req.nextUrl.searchParams.get('tokenId');
       
-      if (urlNetwork && urlContract && urlTokenId) {
+      if (urlNetwork && urlContract && urlTokenId && (!networkId || !contract || !tokenId)) {
         console.log('Found parameters in URL:', { urlNetwork, urlContract, urlTokenId });
         state.networkId = urlNetwork;
         state.contract = urlContract;
         state.tokenId = urlTokenId;
         state.action = 'initial';
+        
+        // Update local variables for immediate use
+        networkId = urlNetwork;
+        contract = urlContract;
+        tokenId = urlTokenId;
       } else {
         // If still missing essential parameters, return error
         return new NextResponse(
