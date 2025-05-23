@@ -778,14 +778,6 @@ export async function POST(req: NextRequest) {
               ? purchaseData.nft.image 
               : `${baseUrl}${purchaseData.nft?.image || '/logo.png'}`;
             
-            // Format base URL for HTTPS
-            const secureBaseUrl = baseUrl.replace(/^http:\/\//i, 'https://');
-            
-            // Prepare transaction endpoint URL with all required parameters
-            const transactionUrl = `${secureBaseUrl}/api/frames/nft/transaction?network=${networkId}&contract=${contract}&tokenId=${tokenId}`;
-            
-            console.log('Transaction target URL:', transactionUrl);
-            
             return new NextResponse(
               `<!DOCTYPE html>
               <html>
@@ -793,16 +785,16 @@ export async function POST(req: NextRequest) {
                   <!-- Required Frame metadata -->
                   <meta property="fc:frame" content="vNext">
                   <meta property="fc:frame:image" content="${imageUrl}">
-                  <meta property="fc:frame:post_url" content="${secureBaseUrl}/api/frames/nft/action">
+                  <meta property="fc:frame:post_url" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/action">
                   
                   <!-- Optional Frame metadata -->
                   <meta property="fc:frame:title" content="Buy ${purchaseData.nft?.name}">
                   <meta property="fc:frame:requires_signature" content="all">
                   
-                  <!-- Purchase button with wallet using Farcaster transaction format -->
+                  <!-- Purchase button with wallet - NEW FORMAT using separate transaction endpoint -->
                   <meta property="fc:frame:button:1" content="Purchase (${priceDisplay} ${purchaseData.currency})">
                   <meta property="fc:frame:button:1:action" content="transaction">
-                  <meta property="fc:frame:button:1:target" content="${transactionUrl}">
+                  <meta property="fc:frame:button:1:target" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/transaction?network=${networkId}&contract=${contract}&tokenId=${tokenId}">
                   
                   <!-- Helper buttons -->
                   <meta property="fc:frame:button:2" content="Open in Marketplace">
@@ -810,7 +802,7 @@ export async function POST(req: NextRequest) {
                   <meta property="fc:frame:button:2:target" content="${buyUrl}">
                   <meta property="fc:frame:button:3" content="Go Back">
                   
-                  <!-- Frame state for callbacks - include all data needed for transaction tracking -->
+                  <!-- Frame state for callbacks -->
                   <meta property="fc:frame:state" content="${Buffer.from(JSON.stringify({
                     networkId,
                     contract,
