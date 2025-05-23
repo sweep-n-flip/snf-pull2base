@@ -6,13 +6,40 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
+    let stateBase64: string = '';
+    let buttonId: string = '';
+    let trustedData: string = '';
+    let untrustedData: string = '';
     
-    const stateBase64 = formData.get('state') as string;
-    const buttonId = formData.get('buttonIndex') as string;
-    const trustedData = formData.get('trustedData.messageBytes') as string;
-    const untrustedData = formData.get('untrustedData') as string;
-    
+    // Check if it's a form submission
+    const contentType = req.headers.get('content-type') || '';
+    if (contentType.includes('form')) {
+      // Process as form data
+      try {
+        const formData = await req.formData();
+        stateBase64 = formData.get('state') as string || '';
+        buttonId = formData.get('buttonIndex') as string || '';
+        trustedData = formData.get('trustedData.messageBytes') as string || '';
+        untrustedData = formData.get('untrustedData') as string || '';
+      } catch (error) {
+        console.error('Error processing form data:', error);
+      }
+    } else {
+      // Try to process as JSON 
+      try {
+        const jsonData = await req.json();
+        stateBase64 = jsonData.state || '';
+        buttonId = jsonData.buttonIndex || '';
+        trustedData = jsonData.trustedData?.messageBytes || '';
+        untrustedData = jsonData.untrustedData || '';
+      } catch (error) {
+        console.error('Error processing JSON data:', error);
+        // Try to get parameters from URL if all else fails
+        const url = new URL(req.url);
+        stateBase64 = url.searchParams.get('state') || '';
+        buttonId = url.searchParams.get('buttonIndex') || '';
+      }
+    }
     // Extract user data from frame interaction
     let userAddress = '';
     
@@ -25,7 +52,7 @@ export async function POST(req: NextRequest) {
         }
         console.log('Trusted data verified successfully');
       } catch (error) {
-        console.error('Error verifying trusted data:', error);
+        console.error('Error verifying trusted data:', error instanceof Error ? error.message : String(error));
       }
     }
 
@@ -36,9 +63,11 @@ export async function POST(req: NextRequest) {
         if (untrustedDataJson?.address) {
           userAddress = untrustedDataJson.address;
           console.log('User address from untrusted data:', userAddress);
+        } else {
+          console.log('No address found in untrustedData:', untrustedData);
         }
       } catch (error) {
-        console.error('Error parsing untrusted data:', error);
+        console.error('Error parsing untrusted data:', error instanceof Error ? error.message : String(error));
       }
     }
     
@@ -90,11 +119,19 @@ export async function POST(req: NextRequest) {
     
     const { networkId, contract, tokenId, action, txHash } = state;
 
-    // Capture transaction hash from callback
-    if (buttonId === '1' && action === 'tx_callback' && formData.has('txHash')) {
-      const capturedTxHash = formData.get('txHash') as string;
-      console.log('Captured transaction hash:', capturedTxHash);
-      state.txHash = capturedTxHash;
+    // Capture transaction hash from callback - use URL parameter if available
+    let capturedTxHash = '';
+    try {
+      if (req.nextUrl.searchParams.has('txHash')) {
+        capturedTxHash = req.nextUrl.searchParams.get('txHash') || '';
+      }
+      
+      if (buttonId === '1' && action === 'tx_callback' && capturedTxHash) {
+        console.log('Captured transaction hash:', capturedTxHash);
+        state.txHash = capturedTxHash;
+      }
+    } catch (error) {
+      console.error('Error capturing txHash:', error instanceof Error ? error.message : String(error));
     }
 
     // Check if we're in transaction callback mode
@@ -467,7 +504,11 @@ export async function POST(req: NextRequest) {
     }
     
   } catch (error) {
-    console.error('Frame action error:', error);
+    console.error('Frame action error:', error instanceof Error ? error.stack : String(error));
+    
+    // Get reliable origin URL
+    const origin = process.env.NEXT_PUBLIC_BASE_URL || 
+                   (req.headers.get('host') ? `https://${req.headers.get('host')}` : 'https://your-domain.com');
     
     // Return an error frame according to the documentation recommendations
     return new NextResponse(
@@ -476,8 +517,8 @@ export async function POST(req: NextRequest) {
         <head>
           <meta property="fc:frame" content="vNext">
           <meta property="fc:frame:title" content="Error">
-          <meta property="fc:frame:image" content="${process.env.NEXT_PUBLIC_BASE_URL || new URL(req.url).origin}/logo.png">
-          <meta property="fc:frame:post_url" content="${process.env.NEXT_PUBLIC_BASE_URL || new URL(req.url).origin}/api/frames/nft/action">
+          <meta property="fc:frame:image" content="${origin}/logo.png">
+          <meta property="fc:frame:post_url" content="${origin}/api/frames/nft/action">
           
           <meta property="fc:frame:button:1" content="Try Again">
           
