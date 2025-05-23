@@ -1,8 +1,34 @@
+import { sendNFTTransactionNotification } from '@/lib/services/frameNotifications';
 import { prepareFramePurchaseTransaction } from '@/lib/services/frameTransactions';
 import { MAINNET_NETWORKS } from '@/lib/services/mainnetReservoir';
+import { validateFrameAction } from '@/lib/services/neynarService';
 import { trackReservoirTransaction } from '@/lib/services/reservoirTx';
 import { extractWalletFromFrameData, verifySignature } from '@/lib/utils/signatureVerification';
 import { NextRequest, NextResponse } from 'next/server';
+
+/**
+ * Get blockchain explorer URL for a transaction based on the network
+ */
+function getExplorerUrlForTransaction(network: any, txHash: string): string {
+  const networkName = network?.name?.toLowerCase() || '';
+  
+  switch (networkName) {
+    case 'ethereum':
+      return `https://etherscan.io/tx/${txHash}`;
+    case 'base':
+      return `https://basescan.org/tx/${txHash}`;
+    case 'optimism':
+      return `https://optimistic.etherscan.io/tx/${txHash}`;
+    case 'arbitrum':
+      return `https://arbiscan.io/tx/${txHash}`;
+    case 'polygon':
+      return `https://polygonscan.com/tx/${txHash}`;
+    case 'zora':
+      return `https://explorer.zora.energy/tx/${txHash}`;
+    default:
+      return `https://etherscan.io/tx/${txHash}`;
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -429,24 +455,50 @@ export async function POST(req: NextRequest) {
         console.log('Found txHash in URL parameters:', capturedTxHash);
       }
       
-      // Check if it's in the untrustedData from newer Farcaster Frames
-      if (parsedUntrustedData && typeof parsedUntrustedData === 'object') {
-        // New tx button format returns transactionId property
-        if (parsedUntrustedData.transactionId && typeof parsedUntrustedData.transactionId === 'string') {
+      // Check if we have a validated action (from Neynar)
+      if (trustedData) {
+        try {
+          // For production, try to use Neynar's validation
+          if (process.env.NODE_ENV === 'production') {
+            // Extract message bytes from trusted data
+            let messageBytes = '';
+            if (typeof trustedData === 'string') {
+              messageBytes = trustedData;
+            } else if (typeof trustedData === 'object' && trustedData !== null) {
+              // Check if messageBytes property exists using type assertion
+              const typedTrustedData = trustedData as Record<string, any>;
+              if ('messageBytes' in typedTrustedData) {
+                messageBytes = typedTrustedData.messageBytes;
+              }
+            }
+                
+            if (messageBytes) {
+              const validatedAction = await validateFrameAction(messageBytes);
+              
+              if (validatedAction.valid && validatedAction.action?.transaction?.hash) {
+                capturedTxHash = validatedAction.action.transaction.hash;
+                console.log('Found txHash from Neynar validated action:', capturedTxHash);
+              }
+            }
+          }
+        } catch (neynarError) {
+          console.error('Error validating with Neynar:', neynarError);
+          // Fall back to legacy extraction methods
+        }
+      }
+      
+      // Legacy extraction as fallback
+      if (!capturedTxHash && parsedUntrustedData && typeof parsedUntrustedData === 'object') {
+        // Check multiple formats for transaction hash
+        if (parsedUntrustedData.transactionId) {
           capturedTxHash = parsedUntrustedData.transactionId;
           console.log('Found txHash in untrustedData.transactionId:', capturedTxHash);
-        } 
-        // Older format or alternative naming
-        else if (parsedUntrustedData.txHash && typeof parsedUntrustedData.txHash === 'string') {
+        } else if (parsedUntrustedData.txHash) {
           capturedTxHash = parsedUntrustedData.txHash;
           console.log('Found txHash in untrustedData.txHash:', capturedTxHash);
-        } 
-        // Newer format - full transaction object
-        else if (parsedUntrustedData.transaction && typeof parsedUntrustedData.transaction === 'object') {
-          if (parsedUntrustedData.transaction.hash) {
-            capturedTxHash = parsedUntrustedData.transaction.hash;
-            console.log('Found txHash in untrustedData.transaction.hash:', capturedTxHash);
-          }
+        } else if (parsedUntrustedData.transaction?.hash) {
+          capturedTxHash = parsedUntrustedData.transaction.hash;
+          console.log('Found txHash in untrustedData.transaction.hash:', capturedTxHash);
         }
       }
       
@@ -467,6 +519,11 @@ export async function POST(req: NextRequest) {
     // Check if we're in transaction callback mode
     if (action === 'tx_callback' && txHash) {
       const network = MAINNET_NETWORKS.find(n => n.id.toString() === networkId);
+      
+      // Define explorer URL ahead of time for use in multiple places
+      const txHashStr = txHash || '';
+      const explorerUrl = getExplorerUrlForTransaction(network || { name: 'ethereum' }, txHashStr);
+      
       if (!network) {
         return new NextResponse(
           `<!DOCTYPE html>
@@ -486,10 +543,35 @@ export async function POST(req: NextRequest) {
         );
       }
       
+      // Try to extract FID for notifications
+      let fid: number | null = null;
+      if (parsedUntrustedData && typeof parsedUntrustedData === 'object' && parsedUntrustedData.fid) {
+        fid = parseInt(String(parsedUntrustedData.fid), 10);
+        if (isNaN(fid)) fid = null;
+      }
+      
+      // Get NFT name for notifications
+      const nftName = state.name || `NFT #${tokenId}`;
+      
       // Get transaction status from our service
-      // We already checked that network is not undefined above, but TypeScript doesn't know that
-      // Add a non-null assertion or proper type guard
-      const txStatus = await trackReservoirTransaction(network!, txHash);
+      const txStatus = await trackReservoirTransaction(network, txHash);
+      
+      // Send notification if we have a Farcaster ID
+      if (fid) {
+        try {
+          if (txStatus.status === 'completed') {
+            await sendNFTTransactionNotification(fid, 'success', nftName, txHash, network.name);
+          } else if (txStatus.status === 'failed') {
+            await sendNFTTransactionNotification(fid, 'failed', nftName, txHash, network.name);
+          } else {
+            // Still pending
+            await sendNFTTransactionNotification(fid, 'pending', nftName, txHash, network.name);
+          }
+        } catch (notifError) {
+          console.error('Error sending notification:', notifError);
+          // Continue with flow even if notification fails
+        }
+      }
       
       if (txStatus.status === 'completed') {
         // Transaction successful
@@ -504,6 +586,9 @@ export async function POST(req: NextRequest) {
               <meta property="fc:frame:button:1" content="View NFT">
               <meta property="fc:frame:button:1:action" content="link">
               <meta property="fc:frame:button:1:target" content="${process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin}?tab=marketplace&network=${networkId}&contract=${contract}&tokenId=${tokenId}">
+              <meta property="fc:frame:button:2" content="View Transaction">
+              <meta property="fc:frame:button:2:action" content="link">
+              <meta property="fc:frame:button:2:target" content="${explorerUrl}">
             </head>
             <body>
               <p>Your purchase was completed successfully!</p>
@@ -528,6 +613,9 @@ export async function POST(req: NextRequest) {
                 tokenId,
                 action: 'initial'
               })).toString('base64')}">
+              <meta property="fc:frame:button:2" content="View Transaction">
+              <meta property="fc:frame:button:2:action" content="link">
+              <meta property="fc:frame:button:2:target" content="${explorerUrl}">
             </head>
             <body>
               <p>Transaction failed: ${txStatus.message || 'Unknown error'}</p>
@@ -551,8 +639,12 @@ export async function POST(req: NextRequest) {
                 contract,
                 tokenId,
                 action: 'tx_callback',
+                name: nftName,
                 txHash
               })).toString('base64')}">
+              <meta property="fc:frame:button:2" content="View Transaction">
+              <meta property="fc:frame:button:2:action" content="link">
+              <meta property="fc:frame:button:2:target" content="${explorerUrl}">
             </head>
             <body>
               <p>Transaction is being processed. Click to check status.</p>
@@ -561,6 +653,8 @@ export async function POST(req: NextRequest) {
           { status: 200, headers: { 'Content-Type': 'text/html' } }
         );
       }
+      
+      // Explorer URL is already defined above
     }
     
     // If button 2 or 3 is pressed (Go back), return to the initial frame

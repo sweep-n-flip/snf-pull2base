@@ -1,26 +1,36 @@
 /**
  * Verifies the signature of trusted data from Farcaster frames.
  * 
- * This is a simplified implementation for development. For production,
- * it's recommended to use the Farcaster SDK for proper validation.
+ * Uses Neynar API for proper validation in production.
  * 
  * @param trustedData The trusted data to verify.
- * @returns True in development mode, in production would validate the signature.
+ * @returns True if signature is valid, false otherwise.
  */
 export async function verifySignature(trustedData: string | undefined): Promise<boolean> {
   try {
-    // For development, just check if trustedData exists
+    // Check if trustedData exists
     if (!trustedData) {
       console.log('No trusted data provided');
       return false;
     }
 
-    // In development, we bypass validation
-    console.log('Signature verification bypassed for development');
-    return true;
-    
-    // In production, you would use the Farcaster Frame SDK to validate signatures
-    // This requires proper dependencies and environment setup
+    // Use Neynar's validation in production
+    if (process.env.NODE_ENV === 'production') {
+      const { validateFrameAction } = await import('../services/neynarService');
+      const validatedAction = await validateFrameAction(trustedData);
+      
+      if (validatedAction.valid) {
+        console.log('Signature successfully verified by Neynar');
+        return true;
+      } else {
+        console.log('Signature validation failed:', validatedAction.error);
+        return false;
+      }
+    } else {
+      // In development, we bypass validation for easier testing
+      console.log('Signature verification bypassed for development');
+      return true;
+    }
   } catch (error) {
     console.error('Error in signature verification:', error instanceof Error ? error.message : String(error));
     return false;
@@ -29,7 +39,7 @@ export async function verifySignature(trustedData: string | undefined): Promise<
 
 /**
  * Extract wallet information from Farcaster Frame message bytes.
- * This is a simplified implementation for Farcaster protocol.
+ * Uses Neynar API for proper validation and extraction in production.
  * 
  * @param trustedData The trusted data containing message bytes
  * @param untrustedData Optional untrusted data to use as fallback
@@ -40,6 +50,34 @@ export async function extractWalletFromFrameData(
   untrustedData: any
 ): Promise<string | null> {
   try {
+    // In production, use Neynar's validation API
+    if (process.env.NODE_ENV === 'production') {
+      console.log('Using Neynar to validate and extract wallet');
+      const { validateFrameAction, extractWalletFromValidatedAction } = await import('../services/neynarService');
+      
+      // Get the message bytes from trusted data
+      const messageBytes = typeof trustedData === 'string' 
+        ? trustedData 
+        : trustedData.messageBytes;
+      
+      if (!messageBytes) {
+        console.log('No message bytes found in trustedData');
+        return null;
+      }
+      
+      // Validate the frame action with Neynar
+      const validatedAction = await validateFrameAction(messageBytes);
+      
+      if (validatedAction.valid) {
+        // Extract wallet from the validated action
+        return extractWalletFromValidatedAction(validatedAction);
+      } else {
+        console.log('Frame validation failed:', validatedAction.error);
+        // Fall back to legacy extraction
+      }
+    }
+    
+    // Legacy extraction logic for development or fallback
     // Check Farcaster Frame-specific formats first
     if (untrustedData) {
       // Look for direct connected accounts
@@ -79,12 +117,10 @@ export async function extractWalletFromFrameData(
       // If we have FID but no wallet, we can fallback to a placeholder
       if (untrustedData.fid) {
         console.log('No wallet found, but have FID:', untrustedData.fid);
-        // In production you might want to look up FID to wallet mappings in a database
-        // For now, return null to indicate we need a placeholder
+        return `fid:${untrustedData.fid}`;
       }
     }
     
-    // Further processing as needed...
     return null;
   } catch (error) {
     console.error('Error extracting wallet:', error);
