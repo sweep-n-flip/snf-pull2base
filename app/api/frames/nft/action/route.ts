@@ -79,18 +79,45 @@ export async function POST(req: NextRequest) {
     }
     
     // 3. Finally try JSON
-    if (!buttonId || !stateBase64) {
+    if (!buttonId || !stateBase64 || !trustedData || !untrustedData) {
       try {
         const clonedReq = req.clone();
         const jsonData = await clonedReq.json().catch(() => ({}));
         console.log('JSON data keys:', Object.keys(jsonData));
+        console.log('Full JSON data structure:', JSON.stringify(jsonData, null, 2));
         
+        // Extract standard frame data
         if (!stateBase64 && jsonData.state) stateBase64 = jsonData.state;
         if (!buttonId && jsonData.buttonIndex) buttonId = jsonData.buttonIndex;
-        if (!trustedData && jsonData.trustedData?.messageBytes) trustedData = jsonData.trustedData.messageBytes;
-        if (!untrustedData && jsonData.untrustedData) untrustedData = jsonData.untrustedData;
         
-        console.log('Data extracted from JSON:', { stateBase64: stateBase64.substring(0, 20), buttonId, hasTrustedData: !!trustedData, hasUntrustedData: !!untrustedData });
+        // Extract trusted data
+        if (!trustedData && jsonData.trustedData?.messageBytes) {
+          trustedData = jsonData.trustedData.messageBytes;
+        }
+        
+        // Extract untrusted data
+        if (!untrustedData && jsonData.untrustedData) {
+          untrustedData = jsonData.untrustedData;
+        }
+
+        // Farcaster Frame specific format handling - use button index from frame action
+        if (!buttonId && jsonData.untrustedData?.buttonIndex) {
+          buttonId = String(jsonData.untrustedData.buttonIndex);
+          console.log('Extracted buttonIndex from untrustedData:', buttonId);
+        }
+        
+        // Extract state from Farcaster Frame format if available
+        if (!stateBase64 && jsonData.untrustedData?.state) {
+          stateBase64 = jsonData.untrustedData.state;
+          console.log('Extracted state from untrustedData:', stateBase64);
+        }
+        
+        console.log('Data extracted from JSON:', { 
+          stateBase64: stateBase64 ? stateBase64.substring(0, 20) + '...' : 'none', 
+          buttonId, 
+          hasTrustedData: !!trustedData, 
+          hasUntrustedData: !!untrustedData 
+        });
       } catch (error) {
         console.error('Error processing JSON data:', error instanceof Error ? error.message : String(error));
       }
@@ -120,12 +147,15 @@ export async function POST(req: NextRequest) {
     }
 
     if (untrustedData) {
-      console.log('Raw untrustedData received:', 
-                  typeof untrustedData === 'string' 
-                    ? untrustedData.length > 100 
-                      ? untrustedData.substring(0, 100) + '...' 
-                      : untrustedData 
-                    : typeof untrustedData);
+      console.log('Raw untrustedData received type:', typeof untrustedData);
+      
+      // Log a safe preview of the untrustedData
+      if (typeof untrustedData === 'string') {
+        console.log('String untrustedData preview:', untrustedData.length > 100 ? untrustedData.substring(0, 100) + '...' : untrustedData);
+      } else if (typeof untrustedData === 'object') {
+        console.log('Object untrustedData keys:', Object.keys(untrustedData as object));
+        console.log('Object untrustedData stringified:', JSON.stringify(untrustedData, null, 2));
+      }
       
       try {
         // Handle different formats of untrustedData
@@ -134,40 +164,74 @@ export async function POST(req: NextRequest) {
         // If it's a string, try to parse it as JSON
         if (typeof untrustedData === 'string') {
           try {
-            // Handle potential stringified JSON
             parsedData = JSON.parse(untrustedData);
             console.log('Successfully parsed untrustedData as JSON');
           } catch (e) {
             console.log('Failed to parse untrustedData as JSON, using as is');
-            // If parsing fails, keep the original string
           }
         }
         
-        // Try different known paths to find an address
+        // Special handling for Farcaster Frame format
         if (typeof parsedData === 'object' && parsedData !== null) {
-          // Common structure paths for address in Farcaster frames
-          const possiblePaths = [
-            // Direct address property
-            parsedData.address,
-            // Nested in untrustedData object
-            parsedData.untrustedData?.address,
-            // Nested in another object
-            parsedData.data?.address,
-            // From FID data structure
-            parsedData.fid?.address || parsedData.fidData?.address,
-            // From connected addresses array
-            (Array.isArray(parsedData.addresses) ? parsedData.addresses[0] : undefined),
-            // From wallets array
-            (Array.isArray(parsedData.wallets) ? parsedData.wallets[0]?.address : undefined)
-          ];
+          // Farcaster Frame format - connected ETH address can be in different places
           
-          // Find first non-null, non-undefined value
-          userAddress = possiblePaths.find(path => path !== undefined && path !== null) || '';
+          // Check for direct connectedAddresses array (Warpcast's format)
+          if (Array.isArray(parsedData.connectedAddresses) && parsedData.connectedAddresses.length > 0) {
+            for (const addr of parsedData.connectedAddresses) {
+              if (addr && typeof addr === 'string' && addr.startsWith('0x')) {
+                userAddress = addr;
+                console.log('Found user address in connectedAddresses:', userAddress);
+                break;
+              }
+            }
+          }
           
-          if (userAddress) {
-            console.log('Found user address:', userAddress);
-          } else {
-            console.log('No address found in parsed data structure');
+          // If not found, try the commonly used singular address property 
+          if (!userAddress) {
+            if (parsedData.connectedAddress && typeof parsedData.connectedAddress === 'string') {
+              userAddress = parsedData.connectedAddress;
+              console.log('Found user address in connectedAddress:', userAddress);
+            }
+          }
+          
+          // Try other common paths in Farcaster Frame untrustedData
+          if (!userAddress) {
+            // Direct properties that may contain the wallet address
+            if (parsedData.address && typeof parsedData.address === 'string' && parsedData.address.startsWith('0x')) {
+              userAddress = parsedData.address;
+              console.log('Found user address in direct address property:', userAddress);
+            } else if (parsedData.walletAddress && typeof parsedData.walletAddress === 'string' && parsedData.walletAddress.startsWith('0x')) {
+              userAddress = parsedData.walletAddress;
+              console.log('Found user address in walletAddress property:', userAddress);
+            } else if (parsedData.ethAddress && typeof parsedData.ethAddress === 'string' && parsedData.ethAddress.startsWith('0x')) {
+              userAddress = parsedData.ethAddress;
+              console.log('Found user address in ethAddress property:', userAddress);
+            }
+          }
+
+          // Try Farcaster standard fields
+          if (!userAddress) {
+            // Try directly in fid object
+            if (parsedData.fid && typeof parsedData.fid === 'object') {
+              if (parsedData.fid.custody_address && parsedData.fid.custody_address.startsWith('0x')) {
+                userAddress = parsedData.fid.custody_address;
+                console.log('Found user address in fid.custody_address:', userAddress);
+              } else if (parsedData.fid.verified_addresses && Array.isArray(parsedData.fid.verified_addresses)) {
+                // Look for ethereum addresses in verified_addresses array
+                for (const addr of parsedData.fid.verified_addresses) {
+                  if (typeof addr === 'string' && addr.startsWith('0x')) {
+                    userAddress = addr;
+                    console.log('Found user address in fid.verified_addresses array:', userAddress);
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          
+          // If still not found, log the issue
+          if (!userAddress) {
+            console.log('No Ethereum address found in untrustedData');
           }
         }
       } catch (error) {
@@ -290,7 +354,9 @@ export async function POST(req: NextRequest) {
       }
       
       // Get transaction status from our service
-      const txStatus = await trackReservoirTransaction(network, txHash);
+      // We already checked that network is not undefined above, but TypeScript doesn't know that
+      // Add a non-null assertion or proper type guard
+      const txStatus = await trackReservoirTransaction(network!, txHash);
       
       if (txStatus.status === 'completed') {
         // Transaction successful
@@ -396,27 +462,45 @@ export async function POST(req: NextRequest) {
     
     // Validate essential parameters
     if (!networkId || !contract || !tokenId) {
-      return new NextResponse(
-        `<!DOCTYPE html>
-        <html>
-          <head>
-            <meta property="fc:frame" content="vNext">
-            <meta property="fc:frame:image" content="${req.nextUrl.origin}/logo.png">
-            <meta property="fc:frame:title" content="Error">
-            <meta property="fc:frame:post_url" content="${req.nextUrl.origin}/api/frames/nft/action">
-            <meta property="fc:frame:button:1" content="Try Again">
-          </head>
-          <body>
-            <p>Error: Missing required state parameters</p>
-          </body>
-        </html>`,
-        { 
-          status: 200, 
-          headers: { 
-            'Content-Type': 'text/html'
+      console.log('Missing essential parameters:', { networkId, contract, tokenId });
+      
+      // Check URL parameters directly as fallback
+      const urlNetwork = req.nextUrl.searchParams.get('network');
+      const urlContract = req.nextUrl.searchParams.get('contract');
+      const urlTokenId = req.nextUrl.searchParams.get('tokenId');
+      
+      if (urlNetwork && urlContract && urlTokenId) {
+        console.log('Found parameters in URL:', { urlNetwork, urlContract, urlTokenId });
+        state.networkId = urlNetwork;
+        state.contract = urlContract;
+        state.tokenId = urlTokenId;
+        state.action = 'initial';
+      } else {
+        // If still missing essential parameters, return error
+        return new NextResponse(
+          `<!DOCTYPE html>
+          <html>
+            <head>
+              <meta property="fc:frame" content="vNext">
+              <meta property="fc:frame:image" content="${req.nextUrl.origin}/logo.png">
+              <meta property="fc:frame:title" content="Error: Missing NFT Info">
+              <meta property="fc:frame:post_url" content="${req.nextUrl.origin}/api/frames/nft/action">
+              <meta property="fc:frame:button:1" content="View All NFTs">
+              <meta property="fc:frame:button:1:action" content="link">
+              <meta property="fc:frame:button:1:target" content="${req.nextUrl.origin}?tab=marketplace">
+            </head>
+            <body>
+              <p>Error: Missing required NFT parameters. Could not determine which NFT you're trying to view.</p>
+            </body>
+          </html>`,
+          { 
+            status: 200, 
+            headers: { 
+              'Content-Type': 'text/html'
+            }
           }
-        }
-      );
+        );
+      }
     }
     
     const network = MAINNET_NETWORKS.find(n => n.id.toString() === networkId);
@@ -480,12 +564,20 @@ export async function POST(req: NextRequest) {
       // If button 1 was pressed, prepare transaction using the new service
       if (buttonId === '1') {
         try {
+          // Make sure we have all required parameters with proper types
+          if (!network || !contract || !tokenId) {
+            throw new Error('Missing required network, contract or tokenId for purchase');
+          }
+          
+          // If user address is missing, use a fallback or placeholder
+          const buyerAddress = userAddress || '0x0000000000000000000000000000000000000000'; 
+          
           // Use the new transaction preparation service
           const purchaseData = await prepareFramePurchaseTransaction(
             network,
             contract,
             tokenId,
-            userAddress,
+            buyerAddress,
             baseUrl
           );
           
