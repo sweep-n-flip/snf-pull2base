@@ -4,6 +4,18 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
   try {
+    // Log complete request for debugging
+    console.log('Transaction endpoint called:');
+    console.log('- Method:', req.method);
+    console.log('- URL:', req.url);
+    
+    // Log headers safely
+    const headers: Record<string, string> = {};
+    req.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
+    console.log('- Headers:', JSON.stringify(headers, null, 2));
+    
     // Get query parameters
     const searchParams = req.nextUrl.searchParams;
     const networkId = searchParams.get('network') || '';
@@ -19,7 +31,13 @@ export async function GET(req: NextRequest) {
       console.error('Missing required parameters for transaction:', { networkId, contract, tokenId });
       return NextResponse.json({
         error: 'Missing required parameters'
-      }, { status: 400 });
+      }, { 
+        status: 400,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        }
+      });
     }
 
     // Get transaction data from your Reservoir service
@@ -35,7 +53,13 @@ export async function GET(req: NextRequest) {
       console.error('Failed to prepare transaction data:', purchaseData.error);
       return NextResponse.json({
         error: purchaseData.error || 'Failed to prepare transaction'
-      }, { status: 500 });
+      }, { 
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        }
+      });
     }
 
     // Check if we have the raw transaction data in txInfo
@@ -52,11 +76,25 @@ export async function GET(req: NextRequest) {
       });
       
       // Return transaction data in the format expected by Farcaster Frame
-      return NextResponse.json({
+      const transactionData = {
         chainId: `eip155:${purchaseData.txInfo.chainId}`,
         to: purchaseData.txInfo.to,
         data: purchaseData.txInfo.data,
         value: purchaseData.txInfo.value
+      };
+      
+      console.log('Returning transaction data to Farcaster:', {
+        chainId: transactionData.chainId,
+        to: transactionData.to,
+        dataLength: transactionData.data.length,
+        value: transactionData.value
+      });
+      
+      return NextResponse.json(transactionData, {
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Content-Type': 'application/json'
+        }
       });
     }
     
@@ -115,6 +153,12 @@ export async function GET(req: NextRequest) {
     console.error('Error generating transaction data:', error instanceof Error ? error.message : String(error));
     return NextResponse.json({
       error: 'Error generating transaction data'
-    }, { status: 500 });
+    }, { 
+      status: 500, 
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json'
+      }
+    });
   }
 }

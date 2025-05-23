@@ -793,7 +793,7 @@ export async function POST(req: NextRequest) {
                   
                   <!-- Purchase button with wallet - NEW FORMAT using separate transaction endpoint -->
                   <meta property="fc:frame:button:1" content="Purchase (${priceDisplay} ${purchaseData.currency})">
-                  <meta property="fc:frame:button:1:action" content="tx">
+                  <meta property="fc:frame:button:1:action" content="transaction">
                   <meta property="fc:frame:button:1:target" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/transaction?network=${networkId}&contract=${contract}&tokenId=${tokenId}">
                   
                   <!-- Helper buttons -->
