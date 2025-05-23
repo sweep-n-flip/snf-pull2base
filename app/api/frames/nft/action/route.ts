@@ -420,7 +420,7 @@ export async function POST(req: NextRequest) {
     // Extract values from state but use let so we can modify them if needed
     let { networkId, contract, tokenId, action, txHash } = state;
 
-    // Capture transaction hash from callback - use URL parameter if available
+    // Capture transaction hash from callback - check all possible locations
     let capturedTxHash = '';
     try {
       // Check URL parameters first
@@ -431,13 +431,18 @@ export async function POST(req: NextRequest) {
       
       // Check if it's in the untrustedData from newer Farcaster Frames
       if (parsedUntrustedData && typeof parsedUntrustedData === 'object') {
+        // New tx button format returns transactionId property
         if (parsedUntrustedData.transactionId && typeof parsedUntrustedData.transactionId === 'string') {
           capturedTxHash = parsedUntrustedData.transactionId;
           console.log('Found txHash in untrustedData.transactionId:', capturedTxHash);
-        } else if (parsedUntrustedData.txHash && typeof parsedUntrustedData.txHash === 'string') {
+        } 
+        // Older format or alternative naming
+        else if (parsedUntrustedData.txHash && typeof parsedUntrustedData.txHash === 'string') {
           capturedTxHash = parsedUntrustedData.txHash;
           console.log('Found txHash in untrustedData.txHash:', capturedTxHash);
-        } else if (parsedUntrustedData.transaction && typeof parsedUntrustedData.transaction === 'object') {
+        } 
+        // Newer format - full transaction object
+        else if (parsedUntrustedData.transaction && typeof parsedUntrustedData.transaction === 'object') {
           if (parsedUntrustedData.transaction.hash) {
             capturedTxHash = parsedUntrustedData.transaction.hash;
             console.log('Found txHash in untrustedData.transaction.hash:', capturedTxHash);
@@ -445,10 +450,15 @@ export async function POST(req: NextRequest) {
         }
       }
       
+      // Log all untrusted data to help debug transaction hash extraction
+      console.log('Looking for transaction hash in:', JSON.stringify(parsedUntrustedData, null, 2));
+      
       // Store the transaction hash in state for tracking
       if (capturedTxHash) {
         console.log('Captured transaction hash:', capturedTxHash);
         state.txHash = capturedTxHash;
+      } else {
+        console.log('No transaction hash found in request');
       }
     } catch (error) {
       console.error('Error capturing txHash:', error instanceof Error ? error.message : String(error));
@@ -779,12 +789,12 @@ export async function POST(req: NextRequest) {
                   
                   <!-- Optional Frame metadata -->
                   <meta property="fc:frame:title" content="Buy ${purchaseData.nft?.name}">
+                  <meta property="fc:frame:requires_signature" content="all">
                   
-                  <!-- Purchase button with wallet -->
-                  <meta property="fc:frame:button:1" content="Sign Purchase (${priceDisplay} ${purchaseData.currency})">
-                  <meta property="fc:frame:button:1:action" content="transaction">
-                  <meta property="fc:frame:button:1:target" content="${purchaseData.txUrl}">
-                  <meta property="fc:frame:button:1:post_url" content="${req.nextUrl.origin}/api/frames/nft/action">
+                  <!-- Purchase button with wallet - NEW FORMAT using separate transaction endpoint -->
+                  <meta property="fc:frame:button:1" content="Purchase (${priceDisplay} ${purchaseData.currency})">
+                  <meta property="fc:frame:button:1:action" content="tx">
+                  <meta property="fc:frame:button:1:target" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/transaction?network=${networkId}&contract=${contract}&tokenId=${tokenId}">
                   
                   <!-- Helper buttons -->
                   <meta property="fc:frame:button:2" content="Open in Marketplace">
@@ -811,7 +821,7 @@ export async function POST(req: NextRequest) {
                 <body>
                   <h1>Buy ${purchaseData.nft?.name}</h1>
                   <p>Price: ${priceDisplay} ${purchaseData.currency}</p>
-                  <p>Click "Sign Purchase" to buy directly with your Warpcast wallet.</p>
+                  <p>Click "Purchase" to buy directly with your connected wallet.</p>
                 </body>
               </html>`,
               {

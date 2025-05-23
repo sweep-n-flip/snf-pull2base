@@ -15,6 +15,12 @@ export interface FrameNFTData {
     owner?: string;
   };
   txUrl?: string;
+  txInfo?: {
+    to: string;
+    data: string;
+    value: string;
+    chainId: string;
+  };
   price?: number | string;
   currency?: string;
   orderId?: string;
@@ -113,6 +119,13 @@ export async function prepareFramePurchaseTransaction(
         owner: nft.token?.owner
       },
       txUrl: txData.txUrl,
+      // Also include the raw transaction data for new endpoint
+      txInfo: {
+        to: txData.step?.action?.data?.to,
+        data: txData.step?.action?.data?.data,
+        value: txData.step?.action?.data?.value || '0',
+        chainId: network.chainId.toString()
+      },
       price: nft.market?.floorAsk?.price?.amount?.native || 0,
       currency: nft.market?.floorAsk?.price?.currency?.symbol || 'ETH',
       orderId: orderId
