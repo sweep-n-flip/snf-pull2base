@@ -181,23 +181,53 @@ export async function POST(req: NextRequest) {
               console.log('Found wallet address in trusted data:', userAddress);
             }
           } catch (e) {
-            console.log('Could not parse trusted data as JSON:', e);
+            console.log('Could not parse trusted data as JSON, trying alternative methods');
           }
           
           // If we still don't have an address, try to decode the message bytes
           if (!userAddress) {
             console.log('Trying to extract wallet from frame data');
-            // Use our utility to extract the wallet from the data
-            const extractedAddress = await extractWalletFromFrameData(
-              typeof trustedData === 'object' && trustedData !== null && 'messageBytes' in trustedData 
-                ? trustedData 
-                : { messageBytes: trustedData }, 
-              parsedUntrustedData
-            );
             
-            if (extractedAddress) {
-              userAddress = extractedAddress;
-              console.log('Successfully extracted wallet address:', userAddress);
+            // Look for custody address in untrusted data first (more reliable for testing)
+            if (parsedUntrustedData) {
+              // Check addresses in verified accounts
+              if (parsedUntrustedData.verifiedAddresses && 
+                  Array.isArray(parsedUntrustedData.verifiedAddresses)) {
+                for (const address of parsedUntrustedData.verifiedAddresses) {
+                  if (typeof address === 'string' && address.startsWith('0x')) {
+                    userAddress = address;
+                    console.log('Found wallet address in verifiedAddresses:', userAddress);
+                    break;
+                  }
+                }
+              }
+              
+              // Check for connected wallet data
+              if (!userAddress && parsedUntrustedData.wallets && 
+                  Array.isArray(parsedUntrustedData.wallets)) {
+                for (const wallet of parsedUntrustedData.wallets) {
+                  if (wallet && wallet.address && typeof wallet.address === 'string') {
+                    userAddress = wallet.address;
+                    console.log('Found wallet address in wallets array:', userAddress);
+                    break;
+                  }
+                }
+              }
+            }
+            
+            // If still no address, use the utility as fallback
+            if (!userAddress) {
+              const extractedAddress = await extractWalletFromFrameData(
+                typeof trustedData === 'object' && trustedData !== null && 'messageBytes' in trustedData 
+                  ? trustedData 
+                  : { messageBytes: trustedData }, 
+                parsedUntrustedData
+              );
+              
+              if (extractedAddress) {
+                userAddress = extractedAddress;
+                console.log('Successfully extracted wallet address:', userAddress);
+              }
             }
           }
         } catch (err) {
@@ -701,16 +731,28 @@ export async function POST(req: NextRequest) {
             throw new Error('Missing required network, contract or tokenId for purchase');
           }
           
-          // If user address is missing, use FID or fallback
-          const buyerAddress = userAddress || (userFid ? `fid:${userFid}` : '${WALLET}');
-          console.log('Using buyer address or placeholder:', buyerAddress);
+          // Use either wallet address, FID placeholder, or a generic placeholder
+          let buyerIdentifier: string;
           
-          // Use the new transaction preparation service
+          if (userAddress && userAddress.startsWith('0x')) {
+            buyerIdentifier = userAddress;
+            console.log('Using actual wallet address for transaction:', buyerIdentifier);
+          } else if (userFid) {
+            // Use FID as identifier with prefix to indicate it's not a wallet address
+            buyerIdentifier = `fid:${userFid}`;
+            console.log('Using FID as identifier:', buyerIdentifier);
+          } else {
+            // Use a generic placeholder that the client should replace
+            buyerIdentifier = '${WALLET}';
+            console.log('Using generic placeholder for wallet');
+          }
+          
+          // Use the transaction preparation service
           const purchaseData = await prepareFramePurchaseTransaction(
             network,
             contract,
             tokenId,
-            buyerAddress,
+            buyerIdentifier,
             baseUrl
           );
           
