@@ -6,6 +6,18 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(req: NextRequest) {
   try {
+    // Log complete request information for debugging
+    console.log('Frame action request received:');
+    console.log('- Method:', req.method);
+    console.log('- URL:', req.url);
+    
+    // Log headers safely
+    const headers: Record<string, string> = {};
+    req.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
+    console.log('- Headers:', JSON.stringify(headers, null, 2));
+    
     let stateBase64: string = '';
     let buttonId: string = '';
     let trustedData: string = '';
@@ -13,33 +25,84 @@ export async function POST(req: NextRequest) {
     
     // Check if it's a form submission
     const contentType = req.headers.get('content-type') || '';
+    console.log('Content-Type:', contentType);
+    
+    // Try all possible ways to extract data
+    // 1. First try URL parameters (query string)
+    const url = new URL(req.url);
+    
+    // Log URL parameters safely
+    const urlParams: Record<string, string> = {};
+    url.searchParams.forEach((value, key) => {
+      urlParams[key] = value;
+    });
+    console.log('URL Parameters:', JSON.stringify(urlParams, null, 2));
+    
+    // Some quick parameters from URL
+    const urlButtonId = url.searchParams.get('buttonIndex');
+    const urlState = url.searchParams.get('state');
+    if (urlButtonId) buttonId = urlButtonId;
+    if (urlState) stateBase64 = urlState;
+    
+    // 2. Try form data
     if (contentType.includes('form')) {
-      // Process as form data
       try {
         const formData = await req.formData();
-        stateBase64 = formData.get('state') as string || '';
-        buttonId = formData.get('buttonIndex') as string || '';
-        trustedData = formData.get('trustedData.messageBytes') as string || '';
-        untrustedData = formData.get('untrustedData') as string || '';
+        
+        // Log form data keys safely
+        const formKeys: string[] = [];
+        formData.forEach((_, key) => {
+          formKeys.push(key);
+        });
+        console.log('Form data keys:', formKeys);
+        
+        // Extract data from form
+        const stateFromForm = formData.get('state');
+        const buttonFromForm = formData.get('buttonIndex');
+        const trustedDataFromForm = formData.get('trustedData.messageBytes');
+        const untrustedDataFromForm = formData.get('untrustedData');
+        
+        if (stateFromForm) stateBase64 = stateFromForm as string || stateBase64;
+        if (buttonFromForm) buttonId = buttonFromForm as string || buttonId;
+        if (trustedDataFromForm) trustedData = trustedDataFromForm as string || '';
+        if (untrustedDataFromForm) untrustedData = untrustedDataFromForm as string || '';
+        
+        console.log('Data extracted from form:', { 
+          stateBase64: stateBase64 ? stateBase64.substring(0, 20) + '...' : 'none', 
+          buttonId, 
+          hasTrustedData: !!trustedData, 
+          hasUntrustedData: !!untrustedData 
+        });
       } catch (error) {
-        console.error('Error processing form data:', error);
-      }
-    } else {
-      // Try to process as JSON 
-      try {
-        const jsonData = await req.json();
-        stateBase64 = jsonData.state || '';
-        buttonId = jsonData.buttonIndex || '';
-        trustedData = jsonData.trustedData?.messageBytes || '';
-        untrustedData = jsonData.untrustedData || '';
-      } catch (error) {
-        console.error('Error processing JSON data:', error);
-        // Try to get parameters from URL if all else fails
-        const url = new URL(req.url);
-        stateBase64 = url.searchParams.get('state') || '';
-        buttonId = url.searchParams.get('buttonIndex') || '';
+        console.error('Error processing form data:', error instanceof Error ? error.message : String(error));
       }
     }
+    
+    // 3. Finally try JSON
+    if (!buttonId || !stateBase64) {
+      try {
+        const clonedReq = req.clone();
+        const jsonData = await clonedReq.json().catch(() => ({}));
+        console.log('JSON data keys:', Object.keys(jsonData));
+        
+        if (!stateBase64 && jsonData.state) stateBase64 = jsonData.state;
+        if (!buttonId && jsonData.buttonIndex) buttonId = jsonData.buttonIndex;
+        if (!trustedData && jsonData.trustedData?.messageBytes) trustedData = jsonData.trustedData.messageBytes;
+        if (!untrustedData && jsonData.untrustedData) untrustedData = jsonData.untrustedData;
+        
+        console.log('Data extracted from JSON:', { stateBase64: stateBase64.substring(0, 20), buttonId, hasTrustedData: !!trustedData, hasUntrustedData: !!untrustedData });
+      } catch (error) {
+        console.error('Error processing JSON data:', error instanceof Error ? error.message : String(error));
+      }
+    }
+    
+    // Log final data availability
+    console.log('Final data availability:', { 
+      hasState: !!stateBase64, 
+      hasButtonId: !!buttonId,
+      hasTrustedData: !!trustedData,
+      hasUntrustedData: !!untrustedData
+    });
     // Extract user data from frame interaction
     let userAddress = '';
     
@@ -57,18 +120,61 @@ export async function POST(req: NextRequest) {
     }
 
     if (untrustedData) {
+      console.log('Raw untrustedData received:', 
+                  typeof untrustedData === 'string' 
+                    ? untrustedData.length > 100 
+                      ? untrustedData.substring(0, 100) + '...' 
+                      : untrustedData 
+                    : typeof untrustedData);
+      
       try {
-        // Parse untrusted data - contains user's FID and connected address
-        const untrustedDataJson = JSON.parse(untrustedData);
-        if (untrustedDataJson?.address) {
-          userAddress = untrustedDataJson.address;
-          console.log('User address from untrusted data:', userAddress);
-        } else {
-          console.log('No address found in untrustedData:', untrustedData);
+        // Handle different formats of untrustedData
+        let parsedData: any = untrustedData;
+        
+        // If it's a string, try to parse it as JSON
+        if (typeof untrustedData === 'string') {
+          try {
+            // Handle potential stringified JSON
+            parsedData = JSON.parse(untrustedData);
+            console.log('Successfully parsed untrustedData as JSON');
+          } catch (e) {
+            console.log('Failed to parse untrustedData as JSON, using as is');
+            // If parsing fails, keep the original string
+          }
+        }
+        
+        // Try different known paths to find an address
+        if (typeof parsedData === 'object' && parsedData !== null) {
+          // Common structure paths for address in Farcaster frames
+          const possiblePaths = [
+            // Direct address property
+            parsedData.address,
+            // Nested in untrustedData object
+            parsedData.untrustedData?.address,
+            // Nested in another object
+            parsedData.data?.address,
+            // From FID data structure
+            parsedData.fid?.address || parsedData.fidData?.address,
+            // From connected addresses array
+            (Array.isArray(parsedData.addresses) ? parsedData.addresses[0] : undefined),
+            // From wallets array
+            (Array.isArray(parsedData.wallets) ? parsedData.wallets[0]?.address : undefined)
+          ];
+          
+          // Find first non-null, non-undefined value
+          userAddress = possiblePaths.find(path => path !== undefined && path !== null) || '';
+          
+          if (userAddress) {
+            console.log('Found user address:', userAddress);
+          } else {
+            console.log('No address found in parsed data structure');
+          }
         }
       } catch (error) {
-        console.error('Error parsing untrusted data:', error instanceof Error ? error.message : String(error));
+        console.error('Error processing untrusted data:', error instanceof Error ? error.message : String(error));
       }
+    } else {
+      console.log('No untrustedData received');
     }
     
     if (!buttonId) {
@@ -110,11 +216,38 @@ export async function POST(req: NextRequest) {
     let state: FrameState = {};
     if (stateBase64) {
       try {
-        const stateJson = Buffer.from(stateBase64, 'base64').toString();
-        state = JSON.parse(stateJson);
+        // Log the state format for debugging
+        console.log('Raw state format:', typeof stateBase64, stateBase64.substring(0, 50));
+        
+        // Try to parse the base64 state
+        try {
+          const stateJson = Buffer.from(stateBase64, 'base64').toString();
+          state = JSON.parse(stateJson);
+          console.log('State successfully parsed from base64');
+        } catch (decodeError) {
+          console.log('Failed to decode base64 state, trying direct JSON parse');
+          // It might already be JSON
+          try {
+            state = JSON.parse(stateBase64);
+            console.log('State successfully parsed directly as JSON');
+          } catch (jsonError) {
+            console.error('Error parsing state as direct JSON:', jsonError instanceof Error ? jsonError.message : String(jsonError));
+            // Last resort: if it looks like an object string, try eval (in controlled environment only)
+            if (stateBase64.startsWith('{') && stateBase64.endsWith('}')) {
+              try {
+                state = JSON.parse(stateBase64.replace(/'/g, '"'));
+                console.log('State parsed after quote replacement');
+              } catch (e) {
+                console.error('All parsing methods failed');
+              }
+            }
+          }
+        }
       } catch (error) {
-        console.error('Error parsing state:', error);
+        console.error('Error in state parsing process:', error instanceof Error ? error.message : String(error));
       }
+    } else {
+      console.log('No state provided in request');
     }
     
     const { networkId, contract, tokenId, action, txHash } = state;
