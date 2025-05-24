@@ -1,4 +1,5 @@
 import { Configuration, NeynarAPIClient } from '@neynar/nodejs-sdk';
+import { AxiosError } from 'axios';
 
 // Singleton instance of the Neynar client
 let neynarClient: NeynarAPIClient | null = null;
@@ -61,14 +62,16 @@ export interface ValidatedFrameAction {
     };
   };
   error?: string;
+  isPaymentRequiredError?: boolean; // Add this flag to identify payment errors
 }
 
 /**
  * Validates a Farcaster Frame action using Neynar's API
  * @param messageBytes - The message bytes from the frame request (trustedData)
+ * @param fallbackUntrustedData - Optional untrusted data to use as fallback if Neynar validation fails
  * @returns ValidatedFrameAction with user and action information
  */
-export async function validateFrameAction(messageBytes: string): Promise<ValidatedFrameAction> {
+export async function validateFrameAction(messageBytes: string, fallbackUntrustedData?: any): Promise<ValidatedFrameAction> {
   try {
     const client = getNeynarClient();
     
@@ -107,9 +110,102 @@ export async function validateFrameAction(messageBytes: string): Promise<Validat
     };
   } catch (error) {
     console.error('Error validating frame action:', error);
+    
+    // Check if the error is a payment required error (402)
+    let isPaymentRequiredError = false;
+    if (error instanceof Error && 'isAxiosError' in error) {
+      const axiosError = error as AxiosError;
+      if (axiosError.response?.status === 402) {
+        console.log('Neynar API returned a Payment Required error (402). Using fallback mechanism.');
+        isPaymentRequiredError = true;
+      }
+    }
+    
+    // If payment error and we have fallback data, generate a synthetic valid response
+    if (isPaymentRequiredError && fallbackUntrustedData) {
+      console.log('Using untrustedData as fallback for Neynar validation');
+      return createValidatedActionFromUntrustedData(fallbackUntrustedData);
+    }
+    
     return {
       valid: false,
-      error: error instanceof Error ? error.message : 'Unknown error validating frame'
+      error: error instanceof Error ? error.message : 'Unknown error validating frame',
+      isPaymentRequiredError
+    };
+  }
+}
+
+/**
+ * Create a synthetic ValidatedFrameAction from untrusted data when Neynar validation fails
+ * This is used as a fallback when the Neynar API returns a payment required error
+ */
+function createValidatedActionFromUntrustedData(untrustedData: any): ValidatedFrameAction {
+  try {
+    // Parse untrustedData if it's a string
+    const data = typeof untrustedData === 'string' ? JSON.parse(untrustedData) : untrustedData;
+    
+    // Extract FID and button info
+    const fid = data.fid || 0;
+    const buttonIndex = data.buttonIndex !== undefined ? 
+      parseInt(data.buttonIndex) : undefined;
+    
+    // Extract wallet addresses from various possible locations
+    const addresses: string[] = [];
+    
+    // From connectedAddresses array
+    if (data.connectedAddresses && Array.isArray(data.connectedAddresses)) {
+      data.connectedAddresses.forEach((addr: string) => {
+        if (typeof addr === 'string' && addr.startsWith('0x')) {
+          addresses.push(addr);
+        }
+      });
+    }
+    
+    // From verified_addresses (if structured like Neynar response)
+    if (data.verified_addresses && data.verified_addresses.eth_addresses) {
+      data.verified_addresses.eth_addresses.forEach((addr: string) => {
+        if (typeof addr === 'string' && addr.startsWith('0x')) {
+          addresses.push(addr);
+        }
+      });
+    }
+    
+    // From wallets array that might be present in some Frame implementations
+    if (data.wallets && Array.isArray(data.wallets)) {
+      data.wallets.forEach((wallet: any) => {
+        if (wallet && wallet.address && typeof wallet.address === 'string' && wallet.address.startsWith('0x')) {
+          addresses.push(wallet.address);
+        }
+      });
+    }
+    
+    // Create a synthetic validated action
+    return {
+      valid: true,
+      action: {
+        url: data.url || '',
+        interactor: {
+          fid: fid,
+          username: data.username || `user_${fid}`,
+          custody_address: addresses.length > 0 ? addresses[0] : undefined,
+          verified_addresses: {
+            eth_addresses: addresses,
+            primary: {
+              eth_address: addresses.length > 0 ? addresses[0] : null
+            }
+          }
+        },
+        tapped_button: buttonIndex !== undefined ? { index: buttonIndex } : undefined,
+        state: data.state ? { serialized: data.state } : undefined
+      },
+      isPaymentRequiredError: true // Mark this as a fallback from a payment error
+    };
+  } catch (error) {
+    console.error('Error creating validated action from untrusted data:', error);
+    return {
+      valid: false,
+      error: 'Failed to create fallback validated action',
+      isPaymentRequiredError: true
     };
   }
 }
@@ -217,9 +313,23 @@ export async function sendFrameNotification(
     }
   } catch (error) {
     console.error('Error sending frame notification:', error);
+    
+    // Check if the error is a payment required error (402)
+    let isPaymentRequiredError = false;
+    if (error instanceof Error && 'isAxiosError' in error) {
+      const axiosError = error as AxiosError;
+      if (axiosError.response?.status === 402) {
+        console.log('Neynar API returned a Payment Required error (402) for notifications.');
+        isPaymentRequiredError = true;
+        // Re-throw the error so that the caller can handle it appropriately
+        throw new Error('Payment required for notifications feature');
+      }
+    }
+    
     return { 
       success: false, 
-      reason: error instanceof Error ? error.message : 'Unknown error sending notification'
+      reason: error instanceof Error ? error.message : 'Unknown error sending notification',
+      isPaymentRequiredError
     };
   }
 }

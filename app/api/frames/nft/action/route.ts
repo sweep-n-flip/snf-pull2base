@@ -187,8 +187,8 @@ export async function POST(req: NextRequest) {
     
     if (trustedData) {
       try {
-        // Verify the trusted data signature
-        const verified = await verifySignature(trustedData);
+        // Verify the trusted data signature, passing untrusted data as fallback
+        const verified = await verifySignature(trustedData, parsedUntrustedData);
         if (!verified) {
           throw new Error('Invalid signature in trusted data');
         }

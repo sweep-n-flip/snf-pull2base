@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
     const contract = url.searchParams.get('contract');
     const tokenId = url.searchParams.get('tokenId');
     const testWallet = url.searchParams.get('testWallet'); // For testing only
+    const fallbackFid = url.searchParams.get('fid'); // For fallback user identification
 
     // Log parameters for debugging
     console.log('Transaction request parameters:', { networkId, contract, tokenId, testWallet });

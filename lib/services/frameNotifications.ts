@@ -19,8 +19,16 @@ export async function sendNFTTransactionNotification(
 ) {
   try {
     // Get user info for personalized message
-    const user = await getUserByFid(fid);
-    const username = user?.username || `user #${fid}`;
+    let username = `user #${fid}`;
+    try {
+      const user = await getUserByFid(fid);
+      if (user?.username) {
+        username = user.username;
+      }
+    } catch (error) {
+      console.log('Error fetching user by FID, using default username:', error);
+      // Continue with default username
+    }
     
     // Create appropriate message based on status
     let title: string;
@@ -67,8 +75,24 @@ export async function sendNFTTransactionNotification(
         targetUrl = baseUrl;
     }
     
-    // Send the notification
-    return sendFrameNotification(fid, title, body, targetUrl);
+    // Try to send the notification, but handle any Neynar API errors gracefully
+    try {
+      return await sendFrameNotification(fid, title, body, targetUrl);
+    } catch (error) {
+      // Check if it's a payment required error (402)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('402') || errorMessage.includes('Payment Required')) {
+        console.log('Payment required for notifications, skipping notification:', { title, body });
+        return { 
+          success: false, 
+          reason: 'Payment required for notifications feature', 
+          silentFailure: true 
+        };
+      }
+      
+      // Re-throw other errors to be caught by the outer catch block
+      throw error;
+    }
   } catch (error) {
     console.error('Error sending NFT transaction notification:', error);
     return { success: false, reason: 'Error sending notification' };
