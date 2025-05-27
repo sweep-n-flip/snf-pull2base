@@ -88,10 +88,44 @@ export async function getConnectedWalletAddress(): Promise<string | null> {
   }
 }
 
+/**
+ * Formata dados de transação para o padrão do Farcaster Frame
+ * @param txInfo Dados da transação
+ * @param chainId ID da chain (número)
+ * @returns Dados formatados para o Farcaster Frame
+ */
+export function formatFrameTransaction(
+  txInfo: { to: string; data: string; value?: string },
+  chainId: number
+) {
+  // Garantir que o valor está no formato correto (hexadecimal)
+  let value = txInfo.value || '0';
+  if (value && !value.startsWith('0x')) {
+    if (!isNaN(Number(value))) {
+      value = '0x' + Number(value).toString(16);
+    } else {
+      value = '0x0';
+    }
+  }
+
+  // Formatação correta para Frames Farcaster
+  return {
+    chainId: `eip155:${chainId}`, // Prefixo eip155: é necessário
+    method: 'eth_sendTransaction',
+    params: {
+      // Não incluir campo "from", o frame substituirá automaticamente
+      to: txInfo.to,
+      data: txInfo.data,
+      value: value
+    }
+  };
+}
+
 export default {
   isInMiniApp,
   isMobileDevice,
   formatFrameUrl,
   redirectToWarpcastAppIfNeeded,
-  getConnectedWalletAddress
+  getConnectedWalletAddress,
+  formatFrameTransaction
 };

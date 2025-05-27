@@ -1,5 +1,6 @@
 import { prepareFramePurchaseTransaction } from '@/lib/services/frameTransactions';
 import { MAINNET_NETWORKS } from '@/lib/services/mainnetReservoir';
+import { formatFrameTransaction } from '@/lib/utils/frameSDK';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
@@ -13,13 +14,20 @@ export async function GET(req: NextRequest) {
     // Extract parameters
     const url = new URL(req.url);
     const networkId = url.searchParams.get('network');
+    const chainIdParam = url.searchParams.get('chainId'); // Nova opção para passar chainId diretamente
     const contract = url.searchParams.get('contract');
     const tokenId = url.searchParams.get('tokenId');
     const testWallet = url.searchParams.get('testWallet'); // For testing only
     const fallbackFid = url.searchParams.get('fid'); // For fallback user identification
 
     // Log parameters for debugging
-    console.log('Transaction request parameters:', { networkId, contract, tokenId, testWallet });
+    console.log('Transaction request parameters:', { 
+      networkId, 
+      chainId: chainIdParam,
+      contract, 
+      tokenId, 
+      testWallet 
+    });
 
     // Validate required parameters
     if (!networkId || !contract || !tokenId) {
@@ -139,19 +147,18 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Format for Farcaster Frame transaction action
+    // Format for Farcaster Frame transaction action using our utility function
     // https://docs.farcaster.xyz/reference/frames/spec#transaction-button-action
-    const frameTransactionData = {
-      chainId: `eip155:${network.chainId}`,
-      method: 'eth_sendTransaction',
-      params: {
-        // Não incluir campo "from" para transações do Farcaster Frame
-        // O Frame irá substituir automaticamente pelo endereço conectado do usuário
+    
+    // Usar nosso utilitário para formatar corretamente a transação
+    const frameTransactionData = formatFrameTransaction(
+      {
         to: txInfo.to,
         data: txInfo.data,
-        value: txInfo.value && txInfo.value !== '0' ? txInfo.value : '0x0'
-      }
-    };
+        value: txInfo.value || '0'
+      },
+      network.chainId
+    );
 
     // Validar formato dos dados da transação
     if (!frameTransactionData.params.to.startsWith('0x')) {
@@ -190,16 +197,31 @@ export async function GET(req: NextRequest) {
       method: frameTransactionData.method
     });
 
+    // Log transaction data before returning
+    console.log('Transaction data formatted successfully:', {
+      chainId: frameTransactionData.chainId,
+      method: frameTransactionData.method,
+      to: frameTransactionData.params.to,
+      valueType: typeof frameTransactionData.params.value,
+      valueHex: frameTransactionData.params.value,
+      dataLength: frameTransactionData.params.data?.length || 0
+    });
+
     // Return the transaction data with CORS headers
     return NextResponse.json(frameTransactionData, {
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
       }
     });
 
   } catch (error) {
     console.error('Transaction endpoint error:', error instanceof Error ? error.stack : String(error));
+    console.log('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      type: error instanceof Error ? error.constructor.name : typeof error
+    });
     
     return NextResponse.json(
       { 

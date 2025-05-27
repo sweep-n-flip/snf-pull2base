@@ -48,9 +48,20 @@ export async function prepareFramePurchaseTransaction(
 
     // 1. Buscar dados do NFT na Reservoir
     const apiUrl = `${network.reservoirBaseUrl}/tokens/v7?tokens=${contract}:${tokenId}`;
-    const apiKey = process.env.NEXT_PUBLIC_RESERVOIR_API_KEY || 'demo-api-key';
     
-    console.log('Fetching NFT data from:', apiUrl);
+    // Verificar e usar a chave API específica para a rede se disponível
+    const networkApiKey = network.chainId === 1 
+      ? process.env.NEXT_PUBLIC_RESERVOIR_ETH_API_KEY 
+      : network.chainId === 8453 
+        ? process.env.NEXT_PUBLIC_RESERVOIR_BASE_API_KEY
+        : null;
+    
+    const apiKey = networkApiKey || process.env.NEXT_PUBLIC_RESERVOIR_API_KEY || 'demo-api-key';
+    
+    console.log(`Fetching NFT data from ${network.name} (chainId: ${network.chainId}):`, {
+      url: apiUrl,
+      apiKey: apiKey.substring(0, 8) + '***' 
+    });
     
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -111,6 +122,8 @@ export async function prepareFramePurchaseTransaction(
     const orderId = nft.market.floorAsk.id;
     
     // Validar se temos um endereço de wallet válido ou usar placeholder
+    // Usamos ${WALLET} como placeholder padrão para frames Farcaster
+    // Se o endereço for inválido ou contém o placeholder, usamos o padrão
     const taker = userAddress && userAddress.startsWith('0x') && !userAddress.includes('${WALLET}') 
       ? userAddress 
       : "${WALLET}";
@@ -168,6 +181,16 @@ export async function prepareFramePurchaseTransaction(
     });
     
     // 3. Retornar dados formatados para uso no Frame
+    // Garantir que o valor está no formato correto (hexadecimal)
+    let finalValue = actionData.value || '0';
+    if (finalValue && !finalValue.startsWith('0x')) {
+      if (!isNaN(Number(finalValue))) {
+        finalValue = '0x' + Number(finalValue).toString(16);
+      } else {
+        finalValue = '0x0';
+      }
+    }
+
     return {
       success: true,
       nft: {
@@ -184,7 +207,7 @@ export async function prepareFramePurchaseTransaction(
       txInfo: {
         to: actionData.to,
         data: actionData.data,
-        value: actionData.value || '0x0',
+        value: finalValue,
         chainId: network.chainId.toString()
       },
       price: nft.market?.floorAsk?.price?.amount?.native || 0,

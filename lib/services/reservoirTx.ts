@@ -85,7 +85,8 @@ export async function getReservoirExecuteData(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey
+        'x-api-key': apiKey,
+        'Accept': 'application/json'
       },
       body: JSON.stringify(requestBody),
       signal: controller.signal
@@ -149,16 +150,17 @@ export async function getReservoirExecuteData(
       }
     }
     
-    // Formatar URL para o frame Farcaster
-    // ethereum:{contract-address}@{chain-id}/call?data={data}&value={value}
-    const txUrl = `ethereum:${txData.to}@${network.chainId}/call?data=${txData.data}&value=${value}`;
+    // Formatar URL para o frame Farcaster 
+    // O formato correto é: ethereum:{contract-address}@{chain-id}/call?data={data}&value={value}
+    // Onde chain-id precisa incluir o prefixo eip155:
+    const txUrl = `ethereum:${txData.to}@eip155:${network.chainId}/call?data=${txData.data}&value=${value}`;
     
     // Log formatted transaction URL and see if we're using special placeholders
     const placeholder = params.taker && (params.taker.includes('${') || params.taker.includes('fid:'));
     console.log('Transaction URL formatted:', {
       txUrl,
       to: txData.to,
-      chainId: network.chainId,
+      chainId: `eip155:${network.chainId}`,
       value: value,
       originalValue: txData.value,
       fromAddress: txData.from,
