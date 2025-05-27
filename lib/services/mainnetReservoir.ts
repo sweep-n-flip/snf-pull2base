@@ -440,6 +440,190 @@ export async function buyNFTDirectly(
 }
 
 /**
+ * Purchase NFT with custom referrer royalties
+ * Uses Reservoir's execute/buy/v7 endpoint with referrer fee support
+ */
+export async function buyNFTWithReferrer(
+  network: MainnetNetwork,
+  contractAddress: string,
+  tokenId: string,
+  buyerAddress: string,
+  referrerAddress?: string,
+  referrerFeeBps?: number // Basis points (100 = 1%)
+): Promise<{
+  success: boolean;
+  error?: string;
+  txHash?: string;
+  steps?: any[];
+  message?: string;
+}> {
+  try {
+    const apiKey = API_KEYS[network.chainId];
+    const apiUrl = network.reservoirBaseUrl;
+
+    // Build the purchase request body
+    const requestBody: any = {
+      items: [
+        {
+          token: `${contractAddress}:${tokenId}`,
+          quantity: 1
+        }
+      ],
+      taker: buyerAddress,
+      onlyPath: false,
+      forceRouter: false,
+      skipBalanceCheck: false
+    };
+
+    // Add referrer fee if provided
+    if (referrerAddress && referrerFeeBps && referrerFeeBps > 0) {
+      requestBody.feesOnTop = [
+        {
+          recipient: referrerAddress,
+          bps: referrerFeeBps
+        }
+      ];
+    }
+
+    // Execute the purchase
+    const response = await fetch(`${apiUrl}/execute/buy/v7`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'accept': '*/*',
+        'x-api-key': apiKey
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Purchase failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.steps || data.steps.length === 0) {
+      throw new Error('No transaction steps received');
+    }
+
+    return {
+      success: true,
+      message: 'Purchase transaction prepared',
+      steps: data.steps
+    };
+
+  } catch (error) {
+    console.error('Error buying NFT with referrer:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    };
+  }
+}
+
+/**
+ * Get the cheapest available NFT from a collection
+ */
+export async function getCheapestNFTFromCollection(
+  network: MainnetNetwork,
+  contractAddress: string
+): Promise<{
+  success: boolean;
+  nft?: ReservoirNFT;
+  error?: string;
+}> {
+  try {
+    const apiKey = API_KEYS[network.chainId];
+    const apiUrl = network.reservoirBaseUrl;
+
+    // Fetch cheapest available NFT
+    const response = await fetch(
+      `${apiUrl}/tokens/v7?collection=${contractAddress}&sortBy=floorAskPrice&limit=1&includeTopBid=true`,
+      {
+        headers: {
+          'accept': 'application/json',
+          'x-api-key': apiKey
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Error fetching cheapest NFT: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.tokens || data.tokens.length === 0) {
+      return {
+        success: false,
+        error: 'No available NFTs found in collection'
+      };
+    }
+
+    return {
+      success: true,
+      nft: data.tokens[0]
+    };
+
+  } catch (error) {
+    console.error('Error getting cheapest NFT:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    };
+  }
+}
+
+/**
+ * Generate collection share URL with referrer information
+ */
+export function generateCollectionShareUrl(
+  network: MainnetNetwork,
+  contractAddress: string,
+  referrerFid?: string,
+  royaltyBps?: number,
+  baseUrl: string = typeof window !== 'undefined' ? window.location.origin : ''
+): string {
+  const params = new URLSearchParams({
+    network: network.id.toString(),
+    contract: contractAddress
+  });
+
+  if (referrerFid) {
+    params.set('referrer', referrerFid);
+  }
+
+  if (royaltyBps) {
+    params.set('royalty', royaltyBps.toString());
+  }
+
+  return `${baseUrl}/api/frames/collection?${params.toString()}`;
+}
+
+/**
+ * Generate Warpcast share URL for a collection
+ */
+export function generateCollectionWarpcastShareUrl(
+  network: MainnetNetwork,
+  contractAddress: string,
+  collectionName: string,
+  referrerFid?: string,
+  royaltyBps?: number,
+  baseUrl: string = typeof window !== 'undefined' ? window.location.origin : ''
+): string {
+  const frameUrl = generateCollectionShareUrl(network, contractAddress, referrerFid, royaltyBps, baseUrl);
+  
+  const royaltyPercent = royaltyBps ? (royaltyBps / 100).toFixed(1) : '0';
+  const shareText = referrerFid 
+    ? `Check out ${collectionName}! 🎨\n\nI earn ${royaltyPercent}% if you buy through my link! 💰`
+    : `Check out ${collectionName}! 🎨`;
+
+  const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(frameUrl)}`;
+  
+  return warpcastUrl;
+}
+
+/**
  * Generate a URL for sharing an NFT to Warpcast as a frame
  * This allows users to share NFTs for purchase directly in their Warpcast feed
  */

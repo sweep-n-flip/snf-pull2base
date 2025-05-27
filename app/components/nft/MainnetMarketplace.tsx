@@ -9,7 +9,11 @@ import {
   NFTBuyAction,
   ReservoirCollection,
   ReservoirNFT,
-  searchCollections
+  searchCollections,
+  buyNFTWithReferrer,
+  getCheapestNFTFromCollection,
+  generateCollectionShareUrl,
+  generateCollectionWarpcastShareUrl
 } from "@/lib/services/mainnetReservoir";
 import { isMobileDevice, isWarpcastApp } from "@/lib/utils/deviceDetection";
 import { ConnectWallet } from "@coinbase/onchainkit/wallet";
@@ -43,6 +47,14 @@ export function MainnetMarketplace() {
   // State to track transaction steps
   const [transactionSteps, setTransactionSteps] = useState<Execute['steps']>([]);
   const [transactionHash, setTransactionHash] = useState<string | undefined>();
+
+  // Referrer and royalty states
+  const [referrerAddress, setReferrerAddress] = useState<string | null>(null);
+  const [royaltyBps, setRoyaltyBps] = useState<number>(250); // Default 2.5%
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showRoyaltyModal, setShowRoyaltyModal] = useState(false);
+  const [customRoyalty, setCustomRoyalty] = useState('');
+  const [collectionToShare, setCollectionToShare] = useState<ReservoirCollection | null>(null);
 
   // Function to search collections based on search term
   const handleSearch = useCallback(async () => {
@@ -207,35 +219,56 @@ export function MainnetMarketplace() {
       // Get the buyer address from wallet - must await as it returns a Promise
       const buyerAddress = await wallet.address();
       
-      // Call the buy function with the wallet adapter
-      const result = await import('@/lib/services/mainnetReservoir').then(mod => 
-        mod.buyNFTDirectly(
-          selectedNetwork,
-          selectedNFT.token.contract,
-          selectedNFT.token.tokenId,
-          buyerAddress,
-          wallet // Pass the wallet adapter
-        )
-      );
+      // Use buyNFTWithReferrer if referrer is present, otherwise use the standard function
+      const result = referrerAddress && royaltyBps > 0
+        ? await buyNFTWithReferrer(
+            selectedNetwork,
+            selectedNFT.token.contract,
+            selectedNFT.token.tokenId,
+            buyerAddress,
+            referrerAddress,
+            royaltyBps
+          )
+        : await import('@/lib/services/mainnetReservoir').then(mod => 
+            mod.buyNFTDirectly(
+              selectedNetwork,
+              selectedNFT.token.contract,
+              selectedNFT.token.tokenId,
+              buyerAddress,
+              wallet // Pass the wallet adapter
+            )
+          );
       
       if (result.success) {
         setTransactionSteps(result.steps || []);
         setTransactionHash(result.txHash);
-        // You can update UI to show transaction progress
+        setPurchaseStatus({
+          success: true,
+          message: referrerAddress 
+            ? `Purchase successful! Referrer ${referrerAddress} will earn ${(royaltyBps / 100).toFixed(1)}%`
+            : 'Purchase successful!',
+          txHash: result.txHash,
+          steps: result.steps
+        });
       } else {
         setError(result.error || "Failed to purchase NFT");
+        setPurchaseStatus({
+          success: false,
+          message: result.error || "Failed to purchase NFT"
+        });
       }
     } catch (err) {
       console.error("Error during purchase:", err);
-      setError(
-        err instanceof Error 
-          ? err.message 
-          : "Unknown error occurred during purchase"
-      );
+      const errorMessage = err instanceof Error ? err.message : "Unknown error occurred during purchase";
+      setError(errorMessage);
+      setPurchaseStatus({
+        success: false,
+        message: errorMessage
+      });
     } finally {
       setIsProcessingPurchase(false);
     }
-  }, [selectedNetwork, selectedNFT, walletClient]);
+  }, [selectedNetwork, selectedNFT, walletClient, referrerAddress, royaltyBps]);
   
   // Function to load trending collections
   const loadTrendingCollections = useCallback(async () => {
@@ -278,10 +311,23 @@ export function MainnetMarketplace() {
     const contractParam = searchParams.get('contract');
     const tokenIdParam = searchParams.get('tokenId');
     const autoSelectParam = searchParams.get('autoSelect');
+    const referrerParam = searchParams.get('referrer');
+    const royaltyParam = searchParams.get('royalty');
+
+    // Set referrer and royalty from URL params
+    if (referrerParam) {
+      setReferrerAddress(referrerParam);
+    }
+    if (royaltyParam) {
+      const royalty = parseInt(royaltyParam);
+      if (royalty >= 10 && royalty <= 1000) { // 0.1% to 10%
+        setRoyaltyBps(royalty);
+      }
+    }
 
     // Only auto-load if all required parameters are present and autoSelect is true
     if (networkParam && contractParam && tokenIdParam && autoSelectParam === 'true') {
-      console.log('Auto-loading NFT from URL params:', { networkParam, contractParam, tokenIdParam });
+      console.log('Auto-loading NFT from URL params:', { networkParam, contractParam, tokenIdParam, referrerParam, royaltyParam });
       loadSpecificNFT(networkParam, contractParam, tokenIdParam);
     }
   }, [searchParams, loadSpecificNFT]);
@@ -297,6 +343,105 @@ export function MainnetMarketplace() {
     }
   }, [searchTerm, handleSearch]);
   
+  // Function to handle collection sharing
+  const handleShareCollection = useCallback(async (collection: ReservoirCollection) => {
+    if (!address) {
+      setError("Please connect your wallet to share collections");
+      return;
+    }
+
+    try {
+      // Find cheapest NFT in collection
+      const cheapestResult = await getCheapestNFTFromCollection(selectedNetwork, collection.contractAddress);
+      
+      if (!cheapestResult.success || !cheapestResult.nft) {
+        setError("No available NFTs found in this collection");
+        return;
+      }
+
+      // Set the collection to share for the dialog
+      setCollectionToShare(collection);
+
+      // Check if on mobile/Warpcast and redirect accordingly
+      if (isMobileDevice() || isWarpcastApp()) {
+        // Generate Warpcast share URL and open directly
+        const warpcastUrl = generateCollectionWarpcastShareUrl(
+          selectedNetwork,
+          collection.contractAddress,
+          collection.name,
+          address,
+          royaltyBps
+        );
+        window.open(warpcastUrl, '_blank');
+      } else {
+        // Desktop: show share dialog
+        setShowShareDialog(true);
+      }
+
+    } catch (err) {
+      console.error("Error sharing collection:", err);
+      setError("Failed to generate share link. Please try again.");
+    }
+  }, [selectedNetwork, address, royaltyBps]);
+
+  // Function to handle royalty selection
+  const handleRoyaltySelection = useCallback((bps: number) => {
+    setRoyaltyBps(bps);
+    setShowRoyaltyModal(false);
+    setCustomRoyalty('');
+  }, []);
+
+  // Function to handle custom royalty input
+  const handleCustomRoyalty = useCallback(() => {
+    const customBps = Math.round(parseFloat(customRoyalty) * 100);
+    if (customBps >= 10 && customBps <= 1000) { // 0.1% to 10%
+      setRoyaltyBps(customBps);
+      setShowRoyaltyModal(false);
+      setCustomRoyalty('');
+    } else {
+      setError('Royalty must be between 0.1% and 10%');
+    }
+  }, [customRoyalty]);
+
+  // Function to handle NFT sharing (updated for collections)
+  const handleShareNFT = useCallback(async (nft: ReservoirNFT) => {
+    try {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+      
+      // Generate collection share URL instead of individual NFT
+      const shareUrl = generateCollectionShareUrl(
+        selectedNetwork,
+        nft.token.contract,
+        address,
+        royaltyBps,
+        baseUrl
+      );
+
+      const warpcastUrl = generateCollectionWarpcastShareUrl(
+        selectedNetwork,
+        nft.token.contract,
+        nft.token.collection.name,
+        address,
+        royaltyBps,
+        baseUrl
+      );
+
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+      }
+
+      if (isMobileDevice() || isWarpcastApp()) {
+        window.open(warpcastUrl, '_blank');
+      } else {
+        setShowShareDialog(true);
+      }
+
+    } catch (err) {
+      console.error("Error sharing NFT:", err);
+      setError("Failed to generate share link. Please try again.");
+    }
+  }, [selectedNetwork, address, royaltyBps]);
+
   return (
     <div className="py-3">
       <div className="container mx-auto px-4">
@@ -369,11 +514,13 @@ export function MainnetMarketplace() {
                 {collections.map(collection => (
                   <Card 
                     key={collection.id}
-                    className="p-3 cursor-pointer hover:shadow-md transition-shadow max-w-[300px] mx-auto w-full"
-                    onClick={() => handleSelectCollection(collection)}
+                    className="p-3 hover:shadow-md transition-shadow max-w-[300px] mx-auto w-full"
                   >
                     <div className="flex flex-col">
-                      <div className="aspect-square w-full rounded-md overflow-hidden mb-2">
+                      <div 
+                        className="aspect-square w-full rounded-md overflow-hidden mb-2 cursor-pointer"
+                        onClick={() => handleSelectCollection(collection)}
+                      >
                         {collection.image ? (
                           <img 
                             src={collection.image} 
@@ -389,7 +536,7 @@ export function MainnetMarketplace() {
                           </div>
                         )}
                       </div>
-                      <div>
+                      <div className="mb-2">
                         <h3 className="text-sm font-medium text-black truncate">{collection.name}</h3>
                         <p className="text-xs text-gray-500 truncate">
                           {collection.tokenCount ? `${collection.tokenCount} items` : 'No data'}
@@ -399,6 +546,24 @@ export function MainnetMarketplace() {
                             <span className="font-medium">Floor:</span> {collection.floorAskPrice.amount.native} {collection.floorAskPrice.currency.symbol}
                           </p>
                         )}
+                      </div>
+                      <div className="flex gap-2 mt-auto">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleSelectCollection(collection)}
+                          className="flex-1 text-xs"
+                        >
+                          Browse
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleShareCollection(collection)}
+                          className="flex-1 text-xs"
+                        >
+                          Share & Earn
+                        </Button>
                       </div>
                     </div>
                   </Card>
@@ -761,6 +926,182 @@ export function MainnetMarketplace() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Royalty Configuration Modal */}
+        {showRoyaltyModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl w-full max-w-md p-6">
+              <h3 className="text-lg font-medium text-black mb-4">
+                Set Your Earning Rate
+              </h3>
+              <p className="text-sm text-gray-500 mb-4">
+                Choose how much you'll earn when someone purchases through your shared link. Higher rates give you more earnings but may discourage buyers.
+              </p>
+              
+              {/* Current Selection Display */}
+              <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                <p className="text-sm text-gray-700">
+                  Current rate: <span className="font-semibold text-[var(--app-accent)]">{(royaltyBps / 100).toFixed(1)}%</span>
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  You'll earn {(royaltyBps / 100).toFixed(1)}% of each sale price
+                </p>
+              </div>
+              
+              {/* Preset Royalty Options */}
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {[100, 250, 500, 750].map(bps => (
+                  <Button
+                    key={bps}
+                    variant={royaltyBps === bps ? "primary" : "outline"}
+                    onClick={() => handleRoyaltySelection(bps)}
+                    className="px-4 py-2 text-sm"
+                  >
+                    {(bps / 100).toFixed(1)}%
+                  </Button>
+                ))}
+              </div>
+              
+              {/* Custom Royalty Input */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Custom Rate (0.1% - 10%)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    value={customRoyalty}
+                    onChange={(e) => setCustomRoyalty(e.target.value)}
+                    placeholder="e.g., 3.5"
+                    min="0.1"
+                    max="10"
+                    step="0.1"
+                    className="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--app-accent)]"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={handleCustomRoyalty}
+                    disabled={!customRoyalty}
+                    className="text-sm"
+                  >
+                    Apply
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowRoyaltyModal(false)}
+                  className="text-sm"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => setShowRoyaltyModal(false)}
+                  className="text-sm"
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Share Dialog Modal */}
+        {showShareDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl w-full max-w-md p-6">
+              <h3 className="text-lg font-medium text-black mb-4">
+                Share Collection & Earn
+              </h3>
+              
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700">Your earning rate:</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowRoyaltyModal(true)}
+                    className="text-xs"
+                  >
+                    {(royaltyBps / 100).toFixed(1)}% ✏️
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500">
+                  You'll earn {(royaltyBps / 100).toFixed(1)}% of each sale made through your link
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    // Copy share URL to clipboard
+                    if (collectionToShare && navigator.clipboard) {
+                      const shareUrl = generateCollectionShareUrl(
+                        selectedNetwork,
+                        collectionToShare.contractAddress,
+                        address,
+                        royaltyBps
+                      );
+                      navigator.clipboard.writeText(shareUrl);
+                    }
+                    setShowShareDialog(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  📋 Copy Link
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (collectionToShare) {
+                      const warpcastUrl = generateCollectionWarpcastShareUrl(
+                        selectedNetwork,
+                        collectionToShare.contractAddress,
+                        collectionToShare.name,
+                        address,
+                        royaltyBps
+                      );
+                      window.open(warpcastUrl, '_blank');
+                    }
+                    setShowShareDialog(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2"
+                >
+                  <img src="/warpcast.png" alt="Warpcast" className="h-4 w-4" />
+                  Share on Warpcast
+                </Button>
+              </div>
+              
+              <div className="flex justify-end mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowShareDialog(false)}
+                  className="text-sm"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Referrer Earnings Display */}
+        {referrerAddress && (
+          <div className="fixed bottom-4 right-4 bg-green-100 border border-green-200 rounded-lg p-3 max-w-sm z-40">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-sm font-medium text-green-800">Referrer Active</span>
+            </div>
+            <p className="text-xs text-green-700 mt-1">
+              Referrer {referrerAddress.slice(0, 6)}...{referrerAddress.slice(-4)} will earn {(royaltyBps / 100).toFixed(1)}% from your purchase
+            </p>
           </div>
         )}
       </div>
