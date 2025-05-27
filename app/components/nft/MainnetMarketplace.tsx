@@ -12,6 +12,7 @@ import {
   searchCollections
 } from "@/lib/services/mainnetReservoir";
 import { isMobileDevice, isWarpcastApp } from "@/lib/utils/deviceDetection";
+import * as frameSDK from "@/lib/utils/frameSDK";
 import { ConnectWallet } from "@coinbase/onchainkit/wallet";
 import { adaptViemWallet, Execute } from "@reservoir0x/reservoir-sdk";
 import { useCallback, useEffect, useState } from "react";
@@ -625,19 +626,62 @@ export function MainnetMarketplace() {
                           window.location.origin
                         );
                         
-                        // Simplificamos a lógica de compartilhamento para usar a URL do warpcast diretamente
-                        // Em qualquer caso, redirecionamos para a URL do warpcast, que funcionará em desktop e mobile
-                        console.log("Opening Warpcast share URL:", url);
+                        console.log("Generated Warpcast share URL:", url);
+                        console.log("Environment check:", {
+                          isWarpcastApp: isWarpcastApp(),
+                          isMobile: isMobileDevice(),
+                          isInMiniApp: frameSDK.isInMiniApp(),
+                          userAgent: navigator.userAgent
+                        });
                         
-                        // Se estamos no app Warpcast ou em dispositivo móvel
-                        if (isWarpcastApp() || isMobileDevice()) {
-                          // No dispositivo móvel, substituímos a navegação da janela atual
+                        // Melhor lógica de compartilhamento baseada no ambiente
+                        if (frameSDK.isInMiniApp()) {
+                          // Estamos dentro do miniapp - usar a API nativa se disponível
+                          console.log("Inside miniapp, trying native share...");
+                          if ((window as any).warpcastShare) {
+                            (window as any).warpcastShare(url);
+                          } else {
+                            // Fallback: abrir na mesma janela
+                            window.location.href = url;
+                          }
+                        } else if (isWarpcastApp()) {
+                          // Estamos no app Warpcast - navegar diretamente
+                          console.log("Inside Warpcast app, navigating...");
                           window.location.href = url;
+                        } else if (isMobileDevice()) {
+                          // Dispositivo móvel mas não no app
+                          console.log("Mobile device, trying to open Warpcast app...");
+                          
+                          // Tentar abrir o deep link primeiro
+                          const appUrl = url.replace('https://warpcast.com', 'warpcast://');
+                          
+                          // Criar um elemento invisível para tentar o deep link
+                          const link = document.createElement('a');
+                          link.href = appUrl;
+                          link.style.display = 'none';
+                          document.body.appendChild(link);
+                          
+                          // Tentar abrir o app
+                          try {
+                            link.click();
+                            
+                            // Se não funcionar em 2 segundos, abrir no navegador
+                            setTimeout(() => {
+                              console.log("App may not have opened, trying web fallback...");
+                              window.open(url, '_blank', 'noopener,noreferrer');
+                              document.body.removeChild(link);
+                            }, 2000);
+                          } catch (err) {
+                            console.log("Deep link failed, opening web version...");
+                            window.open(url, '_blank', 'noopener,noreferrer');
+                            document.body.removeChild(link);
+                          }
                         } else {
-                          // No desktop, abrimos em nova aba
+                          // Desktop - abrir em nova aba
+                          console.log("Desktop, opening in new tab...");
                           window.open(url, '_blank', 'noopener,noreferrer');
                         }
-                        } catch (err) {
+                      } catch (err) {
                         console.error("Error generating share URL:", err);
                         alert("Failed to share to Warpcast. Please try again.");
                       }
