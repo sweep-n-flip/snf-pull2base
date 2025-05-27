@@ -42,7 +42,17 @@ export async function getReservoirExecuteData(
   try {
     // URL da API do Reservoir para execução
     const executeUrl = `${network.reservoirBaseUrl}/execute/v7`;
-    const apiKey = process.env.NEXT_PUBLIC_RESERVOIR_API_KEY || 'demo-api-key';
+    
+    // Verificar e usar a chave API específica para a rede se disponível
+    const networkApiKey = network.chainId === 1 
+      ? process.env.NEXT_PUBLIC_RESERVOIR_ETH_API_KEY 
+      : network.chainId === 8453 
+        ? process.env.NEXT_PUBLIC_RESERVOIR_BASE_API_KEY
+        : null;
+    
+    const apiKey = networkApiKey || process.env.NEXT_PUBLIC_RESERVOIR_API_KEY || 'demo-api-key';
+    
+    console.log(`Usando API endpoint para ${network.name} (chainId: ${network.chainId}): ${executeUrl}`);
     
     const requestBody = {
       items: [{
@@ -59,18 +69,30 @@ export async function getReservoirExecuteData(
       network: network.name,
       chainId: network.chainId,
       body: requestBody,
-      apiKey: apiKey.substring(0, 8) + '***' // Ocultar a chave da API
+      apiKey: apiKey ? (apiKey.substring(0, 3) + '...' + apiKey.substring(apiKey.length - 3)) : 'none'
     });
     
-    // Chamada à API do Reservoir
+    // Verificar se temos uma chave de API válida
+    if (!apiKey || apiKey === 'demo-api-key') {
+      console.warn('⚠️ Usando chave de API de demonstração ou nenhuma chave. Isso pode limitar funcionalidades.');
+    }
+    
+    // Chamada à API do Reservoir com timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos de timeout
+    
     const response = await fetch(executeUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
+      signal: controller.signal
     });
+    
+    // Limpar o timeout
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       const errorText = await response.text();

@@ -73,6 +73,7 @@ export async function GET(req: NextRequest) {
     console.log('Using wallet address:', walletAddress === '${WALLET}' ? 'PLACEHOLDER' : walletAddress);
 
     // Prepare the transaction data using our service
+    console.log(`Iniciando preparação de transação para NFT ${contract}:${tokenId} na rede ${network.name} (${network.chainId})`);
     const purchaseData = await prepareFramePurchaseTransaction(
       network,
       contract,
@@ -80,9 +81,24 @@ export async function GET(req: NextRequest) {
       walletAddress,
       baseUrl
     );
+    
+    console.log('Resultado da preparação de transação:', {
+      success: purchaseData.success,
+      hasError: !!purchaseData.error,
+      errorMsg: purchaseData.error,
+      hasNft: !!purchaseData.nft,
+      hasTxInfo: !!purchaseData.txInfo,
+      price: purchaseData.price,
+      currency: purchaseData.currency
+    });
 
     if (!purchaseData.success || !purchaseData.txInfo) {
       console.error('Failed to prepare transaction:', purchaseData.error);
+      
+      // Se o NFT não estiver à venda, retornar um 400 em vez de um 500
+      // pois é um erro de negócio, não técnico
+      const statusCode = purchaseData.error === 'NFT not for sale' ? 400 : 500;
+      
       return NextResponse.json(
         { 
           error: 'Transaction preparation failed',
@@ -95,7 +111,7 @@ export async function GET(req: NextRequest) {
           }
         }, 
         { 
-          status: 500,
+          status: statusCode,
           headers: {
             'Access-Control-Allow-Origin': '*',
             'Content-Type': 'application/json'
@@ -129,6 +145,8 @@ export async function GET(req: NextRequest) {
       chainId: `eip155:${network.chainId}`,
       method: 'eth_sendTransaction',
       params: {
+        // Não incluir campo "from" para transações do Farcaster Frame
+        // O Frame irá substituir automaticamente pelo endereço conectado do usuário
         to: txInfo.to,
         data: txInfo.data,
         value: txInfo.value && txInfo.value !== '0' ? txInfo.value : '0x0'

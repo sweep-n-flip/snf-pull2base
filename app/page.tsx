@@ -1,18 +1,19 @@
 "use client";
 
+import frameSDK from "@/lib/utils/frameSDK";
 import {
-  Address,
-  Avatar,
-  EthBalance,
-  Identity,
-  Name,
+    Address,
+    Avatar,
+    EthBalance,
+    Identity,
+    Name,
 } from "@coinbase/onchainkit/identity";
 import { useAddFrame, useMiniKit } from "@coinbase/onchainkit/minikit";
 import {
-  ConnectWallet,
-  Wallet,
-  WalletDropdown,
-  WalletDropdownDisconnect,
+    ConnectWallet,
+    Wallet,
+    WalletDropdown,
+    WalletDropdownDisconnect,
 } from "@coinbase/onchainkit/wallet";
 import { useCallback, useEffect, useState } from "react";
 import { Button, Header, Icon, Logo } from "./components/Main";
@@ -27,6 +28,30 @@ export default function App() {
   useEffect(() => {
     if (!isFrameReady) {
       setFrameReady();
+    }
+    
+    // Verifica se precisa redirecionar para o app Farcaster/Warpcast
+    if (typeof window !== 'undefined') {
+      // Detecta se está no ambiente de um MiniApp
+      const isInApp = frameSDK.isInMiniApp();
+      const isMobile = frameSDK.isMobileDevice();
+      
+      console.log("Ambiente detectado:", { 
+        isInMiniApp: isInApp, 
+        isMobile: isMobile,
+        userAgent: window.navigator.userAgent
+      });
+      
+      // Se for mobile mas não estiver no app, redireciona
+      if (isMobile && !isInApp) {
+        const searchParams = new URLSearchParams(window.location.search);
+        const isShareAction = searchParams.get('action') === 'share';
+        
+        if (isShareAction) {
+          console.log("Redirecionando para Warpcast app...");
+          frameSDK.redirectToWarpcastAppIfNeeded();
+        }
+      }
     }
   }, [setFrameReady, isFrameReady]);
 
