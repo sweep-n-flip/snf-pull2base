@@ -121,11 +121,62 @@ export function formatFrameTransaction(
   };
 }
 
+/**
+ * Define URLs for Farcaster wallet resources to handle CORS properly
+ */
+export const FARCASTER_WALLET_RESOURCES = {
+  WALLET_RESOURCE_URL: 'https://client.warpcast.com/v2/wallet/resource',
+  TRANSACTION_SERVICE: 'https://wallet.farcaster.xyz/api/transaction',
+  WALLET_AUTH: 'https://client.warpcast.com/v2/authenticateWithWallet',
+  WARPCAST_APP: 'https://warpcast.com'
+};
+
+/**
+ * Helper function to create a proxy fetch that works with Farcaster wallet
+ * Solves CORS issues by using your own server as a proxy
+ * @param url Wallet resource URL to fetch
+ * @param options Fetch options
+ */
+export async function proxyFarcasterWalletFetch(
+  url: string, 
+  options: RequestInit = {}
+): Promise<Response> {
+  // If we're on the server, we're already bypassing CORS
+  if (typeof window === 'undefined') {
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        'Accept': 'application/json'
+      }
+    });
+  }
+
+  // On client, use your proxy endpoint instead
+  // You'll need to create a proxy API route in your Next.js app
+  const proxyUrl = '/api/wallet-proxy';
+  
+  return fetch(proxyUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      url,
+      method: options.method || 'GET',
+      headers: options.headers || {},
+      body: options.body
+    })
+  });
+}
+
 export default {
   isInMiniApp,
   isMobileDevice,
   formatFrameUrl,
   redirectToWarpcastAppIfNeeded,
   getConnectedWalletAddress,
-  formatFrameTransaction
+  formatFrameTransaction,
+  FARCASTER_WALLET_RESOURCES,
+  proxyFarcasterWalletFetch
 };

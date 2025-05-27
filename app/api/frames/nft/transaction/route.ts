@@ -3,6 +3,34 @@ import { MAINNET_NETWORKS } from '@/lib/services/mainnetReservoir';
 import { formatFrameTransaction } from '@/lib/utils/frameSDK';
 import { NextRequest, NextResponse } from 'next/server';
 
+// CORS allowed origins - extend this list as needed
+const ALLOWED_ORIGINS = [
+  'https://wallet.farcaster.xyz',
+  'https://client.warpcast.com',
+  'https://warpcast.com',
+  'https://farcaster.xyz'
+];
+
+/**
+ * Helper function to get CORS headers
+ */
+function getCorsHeaders(req: NextRequest) {
+  const origin = req.headers.get('origin') || '';
+  
+  // Determine if the origin is allowed
+  const isAllowedOrigin = ALLOWED_ORIGINS.includes(origin) || !origin;
+  const corsOrigin = isAllowedOrigin ? origin : '*';
+  
+  return {
+    'Access-Control-Allow-Origin': corsOrigin,
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept',
+    'Access-Control-Allow-Credentials': isAllowedOrigin ? 'true' : 'false',
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
+  };
+}
+
 /**
  * Transaction endpoint for Farcaster Frames
  * This returns transaction data in the format expected by Farcaster Frame's transaction action
@@ -40,10 +68,7 @@ export async function GET(req: NextRequest) {
         }, 
         { 
           status: 400,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Content-Type': 'application/json'
-          }
+          headers: getCorsHeaders(req)
         }
       );
     }
@@ -60,10 +85,7 @@ export async function GET(req: NextRequest) {
         }, 
         { 
           status: 400,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Content-Type': 'application/json'
-          }
+          headers: getCorsHeaders(req)
         }
       );
     }
@@ -167,10 +189,7 @@ export async function GET(req: NextRequest) {
         { error: 'Invalid transaction "to" address format' },
         { 
           status: 500,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Content-Type': 'application/json'
-          }
+          headers: getCorsHeaders(req)
         }
       );
     }
@@ -181,10 +200,7 @@ export async function GET(req: NextRequest) {
         { error: 'Invalid transaction data format' },
         { 
           status: 500,
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Content-Type': 'application/json'
-          }
+          headers: getCorsHeaders(req)
         }
       );
     }
@@ -207,13 +223,9 @@ export async function GET(req: NextRequest) {
       dataLength: frameTransactionData.params.data?.length || 0
     });
 
-    // Return the transaction data with CORS headers
+    // Return the transaction data with proper CORS headers
     return NextResponse.json(frameTransactionData, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
-      }
+      headers: getCorsHeaders(req)
     });
 
   } catch (error) {
@@ -230,24 +242,29 @@ export async function GET(req: NextRequest) {
       }, 
       { 
         status: 500,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Content-Type': 'application/json'
-        }
+        headers: getCorsHeaders(req)
       }
     );
   }
 }
 
 // Handle OPTIONS for CORS preflight requests
-export async function OPTIONS() {
+export async function OPTIONS(req: NextRequest) {
+  const origin = req.headers.get('origin') || '';
+  
+  // Determine if the origin is allowed
+  const isAllowedOrigin = ALLOWED_ORIGINS.includes(origin) || !origin;
+  const corsOrigin = isAllowedOrigin ? origin : ALLOWED_ORIGINS[0];
+  
   return NextResponse.json(
     { success: true },
     {
       headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Origin': corsOrigin || '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept',
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Max-Age': '86400', // 24 hours
         'Content-Type': 'application/json'
       }
     }
