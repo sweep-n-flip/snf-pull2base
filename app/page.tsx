@@ -2,22 +2,22 @@
 
 import frameSDK from "@/lib/utils/frameSDK";
 import {
-    Address,
-    Avatar,
-    EthBalance,
-    Identity,
-    Name,
+  Address,
+  Avatar,
+  EthBalance,
+  Identity,
+  Name,
 } from "@coinbase/onchainkit/identity";
 import { useAddFrame, useMiniKit } from "@coinbase/onchainkit/minikit";
 import {
-    ConnectWallet,
-    Wallet,
-    WalletDropdown,
-    WalletDropdownDisconnect,
+  ConnectWallet,
+  Wallet,
+  WalletDropdown,
+  WalletDropdownDisconnect,
 } from "@coinbase/onchainkit/wallet";
 import { useCallback, useEffect, useState } from "react";
 import { Button, Header, Icon, Logo } from "./components/Main";
-import { NFTTabsNavigation } from "./components/nft/NFTTabsNavigation";
+import { NFTTabsWrapper } from "./components/nft/NFTTabsWrapper";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
@@ -125,7 +125,7 @@ export default function App() {
       {header}
       <main className="flex-1 py-6">
         <div className="container mx-auto px-4">
-          <NFTTabsNavigation />
+          <NFTTabsWrapper />
         </div>
       </main>
       {footer}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "../Main";
 import { CollectionList, type NFTCollection } from "./CollectionList";
 import { MainnetMarketplace } from "./MainnetMarketplace";
