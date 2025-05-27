@@ -66,9 +66,7 @@ export async function GET(req: NextRequest) {
 
     // Define base URL for redirection
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
-                    `${req.headers.get('x-forwarded-proto') || 'https'}://${req.headers.get('host')}`;
-    
-    const buyUrl = `${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&tokenId=${tokenId}`;
+                    `${req.headers.get('x-forwarded-proto') || 'https'}://${req.headers.get('host')}`;        const buyUrl = `${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&tokenId=${tokenId}&autoSelect=true`;
 
     // Return redirect message instead of transaction data
     return NextResponse.json(

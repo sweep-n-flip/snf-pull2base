@@ -28,8 +28,14 @@ export function isWarpcastApp(): boolean {
   
   // Verifica se o user agent contém identificadores específicos do Warpcast
   return (
-    userAgent.includes('warpcast') || 
-    document.referrer.includes('farcaster.xyz')
+    userAgent.includes('warpcast') ||
+    userAgent.includes('farcaster') ||
+    document.referrer.includes('farcaster.xyz') ||
+    document.referrer.includes('warpcast.com') ||
+    // Também verifica se estamos em um webview dentro do Warpcast
+    window.location.href.includes('warpcast') ||
+    // Verifica headers específicos que o Warpcast pode enviar
+    (typeof document !== 'undefined' && document.referrer.includes('miniapp'))
   );
 }
 

@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
     const currencyData = nft.market?.floorAsk?.price?.currency?.symbol || 'ETH';
     
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin;
-    const buyUrl = `${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&tokenId=${tokenId}`;
+    const buyUrl = `${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&tokenId=${tokenId}&autoSelect=true`;
     
     // Generate appropriate title
     const title = collection ? `${name} from ${collection}` : name || `NFT #${tokenId}`;

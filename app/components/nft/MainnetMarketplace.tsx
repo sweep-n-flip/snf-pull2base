@@ -15,12 +15,14 @@ import { isMobileDevice, isWarpcastApp } from "@/lib/utils/deviceDetection";
 import { ConnectWallet } from "@coinbase/onchainkit/wallet";
 import { adaptViemWallet, Execute } from "@reservoir0x/reservoir-sdk";
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAccount, useWalletClient } from "wagmi";
 import { Button, Card } from "../Main";
 
 export function MainnetMarketplace() {
   const { isConnected, address } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const searchParams = useSearchParams();
   
   const [selectedNetwork, setSelectedNetwork] = useState(MAINNET_NETWORKS[0]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -107,6 +109,78 @@ export function MainnetMarketplace() {
       setIsLoadingBuyData(false);
     }
   }, [selectedNetwork]);
+
+  // Function to load a specific NFT from URL parameters
+  const loadSpecificNFT = useCallback(async (networkId: string, contract: string, tokenId: string) => {
+    try {
+      setIsLoadingBuyData(true);
+      setError(null);
+
+      // Find the network
+      const network = MAINNET_NETWORKS.find(n => n.id.toString() === networkId);
+      if (!network) {
+        throw new Error(`Network with ID ${networkId} not found`);
+      }
+
+      // Set the network if it's different from current
+      if (network.id !== selectedNetwork.id) {
+        setSelectedNetwork(network);
+      }
+
+      // Fetch the specific NFT data
+      const apiUrl = `${network.reservoirBaseUrl}/tokens/v7?tokens=${contract}:${tokenId}&includeAttributes=true&includeTopBid=true&includeLastSale=true&includeMarketData=true`;
+      const apiKey = process.env.NEXT_PUBLIC_RESERVOIR_API_KEY || 'demo-api-key';
+
+      const response = await fetch(apiUrl, {
+        headers: {
+          'accept': 'application/json',
+          'x-api-key': apiKey
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error fetching NFT data: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.tokens || data.tokens.length === 0) {
+        throw new Error('NFT not found');
+      }
+
+      const nftData = data.tokens[0];
+      
+      // Convert to ReservoirNFT format
+      const reservoirNFT: ReservoirNFT = {
+        token: {
+          tokenId: nftData.token?.tokenId || tokenId,
+          name: nftData.token?.name,
+          description: nftData.token?.description,
+          image: nftData.token?.image,
+          media: nftData.token?.media,
+          attributes: nftData.token?.attributes,
+          owner: nftData.token?.owner,
+          collection: {
+            id: nftData.token?.collection?.id || '',
+            name: nftData.token?.collection?.name || ''
+          },
+          contract: nftData.token?.contract || contract,
+          isFlagged: nftData.token?.isFlagged || false,
+          lastSale: nftData.token?.lastSale
+        },
+        market: nftData.market
+      };
+
+      // Auto-select this NFT
+      await handleSelectNFT(reservoirNFT);
+
+    } catch (err) {
+      console.error("Error loading specific NFT:", err);
+      setError(err instanceof Error ? err.message : "Failed to load specific NFT");
+    } finally {
+      setIsLoadingBuyData(false);
+    }
+  }, [selectedNetwork, handleSelectNFT]);
 
   // Function to buy NFT directly via Reservoir API
   const [isBuying, setIsBuying] = useState(false);
@@ -197,6 +271,20 @@ export function MainnetMarketplace() {
   useEffect(() => {
     loadTrendingCollections();
   }, [loadTrendingCollections]);
+
+  // Auto-load specific NFT from URL parameters
+  useEffect(() => {
+    const networkParam = searchParams.get('network');
+    const contractParam = searchParams.get('contract');
+    const tokenIdParam = searchParams.get('tokenId');
+    const autoSelectParam = searchParams.get('autoSelect');
+
+    // Only auto-load if all required parameters are present and autoSelect is true
+    if (networkParam && contractParam && tokenIdParam && autoSelectParam === 'true') {
+      console.log('Auto-loading NFT from URL params:', { networkParam, contractParam, tokenIdParam });
+      loadSpecificNFT(networkParam, contractParam, tokenIdParam);
+    }
+  }, [searchParams, loadSpecificNFT]);
 
   // Effect to automatically search when search term has more than 3 characters
   useEffect(() => {
@@ -629,12 +717,29 @@ export function MainnetMarketplace() {
                         // Em qualquer caso, redirecionamos para a URL do warpcast, que funcionará em desktop e mobile
                         console.log("Opening Warpcast share URL:", url);
                         
-                        // Se estamos no app Warpcast ou em dispositivo móvel
-                        if (isWarpcastApp() || isMobileDevice()) {
-                          // No dispositivo móvel, substituímos a navegação da janela atual
+                        // Detectar se estamos no Warpcast ou dispositivo móvel
+                        const isInWarpcast = isWarpcastApp();
+                        const isMobile = isMobileDevice();
+                        
+                        if (isInWarpcast) {
+                          // No Warpcast, usar window.location.href para manter no miniapp
                           window.location.href = url;
+                        } else if (isMobile) {
+                          // Em dispositivo móvel mas fora do Warpcast, tentar abrir no app se possível
+                          // Usar intent do Warpcast para tentar abrir no app
+                          const warpcastIntentUrl = `warpcast://compose?text=${encodeURIComponent(`Check out this NFT: ${selectedNFT.token.name || `#${selectedNFT.token.tokenId}`}`)}&embeds[]=${encodeURIComponent(`${window.location.origin}/api/frames/nft?network=${selectedNetwork.id}&contract=${selectedNFT.token.contract}&tokenId=${selectedNFT.token.tokenId}`)}`;
+                          
+                          // Tentar abrir no app primeiro, se falhar usar a web
+                          const appOpened = window.open(warpcastIntentUrl, '_self');
+                          
+                          // Fallback para versão web após um pequeno delay
+                          setTimeout(() => {
+                            if (!appOpened || appOpened.closed) {
+                              window.location.href = url;
+                            }
+                          }, 1000);
                         } else {
-                          // No desktop, abrimos em nova aba
+                          // No desktop, abrir em nova aba
                           window.open(url, '_blank', 'noopener,noreferrer');
                         }
                         } catch (err) {

@@ -825,7 +825,7 @@ export async function POST(req: NextRequest) {
       const price = nft.market?.floorAsk?.price?.amount?.native || 'Not for sale';
       const currency = nft.market?.floorAsk?.price?.currency?.symbol || 'ETH';
       
-      const buyUrl = `${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&tokenId=${tokenId}&action=buy`;
+      const buyUrl = `${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&tokenId=${tokenId}&autoSelect=true`;
       
       // If button 1 was pressed, prepare transaction using the new service
       if (buttonId === '1') {
