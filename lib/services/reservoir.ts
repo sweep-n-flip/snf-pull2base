@@ -86,7 +86,14 @@ export async function getCollectionsByNetwork(network: Network, limit = 10): Pro
     }
 
     const data = await response.json();
-    return data.collections || [];
+    
+    // Map primaryContract to contractAddress for consistency
+    const collections = (data.collections || []).map((collection: any) => ({
+      ...collection,
+      contractAddress: collection.primaryContract || collection.id
+    }));
+    
+    return collections;
   } catch (error) {
     console.error('Erro ao buscar coleções:', error);
     return [];

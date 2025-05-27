@@ -50,9 +50,11 @@ export async function POST(req: NextRequest) {
     // Generate shareable collection URL with referrer info
     const shareUrl = `${baseUrl}/api/frames/collection?network=${frameData.networkId}&contract=${frameData.contract}&referrer=${userFid}&royalty=${royaltyBps}`;
     
-    // Create share text for social media
+    // Calculate royalty percentage for display purposes
     const royaltyPercent = (royaltyBps / 100).toFixed(1);
-    const shareText = `Check out ${frameData.collectionName || 'this NFT collection'}! 🎨\n\nFloor: ${frameData.floorPrice}\nCheapest: ${frameData.cheapestPrice}\n\nI earn ${royaltyPercent}% if you buy through my link! 💰`;
+    
+    // Create share text for social media - use same simple format as NFT individual
+    const shareText = `Check out this collection: ${frameData.collectionName || 'Collection'}`;
 
     return new NextResponse(
       `<!DOCTYPE html>

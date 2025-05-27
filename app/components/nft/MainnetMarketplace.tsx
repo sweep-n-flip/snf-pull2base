@@ -1,7 +1,11 @@
 "use client";
 
 import {
+  buyNFTWithReferrer,
+  generateCollectionShareUrl,
+  generateCollectionWarpcastShareUrl,
   generateWarpcastShareUrl,
+  getCheapestNFTFromCollection,
   getMainnetNFTBuyData,
   getMainnetNFTsByCollection,
   getTrendingCollections,
@@ -9,11 +13,7 @@ import {
   NFTBuyAction,
   ReservoirCollection,
   ReservoirNFT,
-  searchCollections,
-  buyNFTWithReferrer,
-  getCheapestNFTFromCollection,
-  generateCollectionShareUrl,
-  generateCollectionWarpcastShareUrl
+  searchCollections
 } from "@/lib/services/mainnetReservoir";
 import { isMobileDevice, isWarpcastApp } from "@/lib/utils/deviceDetection";
 import { ConnectWallet } from "@coinbase/onchainkit/wallet";
@@ -51,7 +51,6 @@ export function MainnetMarketplace() {
   // Referrer and royalty states
   const [referrerAddress, setReferrerAddress] = useState<string | null>(null);
   const [royaltyBps, setRoyaltyBps] = useState<number>(250); // Default 2.5%
-  const [showShareDialog, setShowShareDialog] = useState(false);
   const [showRoyaltyModal, setShowRoyaltyModal] = useState(false);
   const [customRoyalty, setCustomRoyalty] = useState('');
   const [collectionToShare, setCollectionToShare] = useState<ReservoirCollection | null>(null);
@@ -359,49 +358,82 @@ export function MainnetMarketplace() {
         return;
       }
 
-      // Set the collection to share for the dialog
+      // Set the collection to share and show the royalty modal
       setCollectionToShare(collection);
-
-      // Check if on mobile/Warpcast and redirect accordingly
-      if (isMobileDevice() || isWarpcastApp()) {
-        // Generate Warpcast share URL and open directly
-        const warpcastUrl = generateCollectionWarpcastShareUrl(
-          selectedNetwork,
-          collection.contractAddress,
-          collection.name,
-          address,
-          royaltyBps
-        );
-        window.open(warpcastUrl, '_blank');
-      } else {
-        // Desktop: show share dialog
-        setShowShareDialog(true);
-      }
+      setShowRoyaltyModal(true);
 
     } catch (err) {
       console.error("Error sharing collection:", err);
       setError("Failed to generate share link. Please try again.");
     }
-  }, [selectedNetwork, address, royaltyBps]);
+  }, [selectedNetwork, address]);
 
-  // Function to handle royalty selection
+  // Function to handle royalty selection and share
   const handleRoyaltySelection = useCallback((bps: number) => {
     setRoyaltyBps(bps);
     setShowRoyaltyModal(false);
     setCustomRoyalty('');
-  }, []);
+
+    // If we have a collection to share, proceed with sharing
+    if (collectionToShare && address) {
+      try {
+        const url = generateCollectionWarpcastShareUrl(
+          selectedNetwork,
+          collectionToShare.contractAddress,
+          collectionToShare.name,
+          address,
+          bps,
+          window.location.origin
+        );
+        
+        console.log("Opening Collection Cast with Warpcast URL:", url);
+        
+        // Detectar se estamos no Warpcast ou dispositivo móvel (identical to NFT Cast)
+        const isInWarpcast = isWarpcastApp();
+        const isMobile = isMobileDevice();
+        
+        if (isInWarpcast) {
+          // No Warpcast, usar window.location.href para manter no miniapp
+          window.location.href = url;
+        } else if (isMobile) {
+          // Em dispositivo móvel mas fora do Warpcast, tentar abrir no app se possível
+          // Usar intent do Warpcast para tentar abrir no app
+          const frameUrl = `${window.location.origin}/api/frames/collection?network=${selectedNetwork.id}&contract=${collectionToShare.contractAddress}&referrer=${address}&royalty=${bps}`;
+          const shareText = `Check out this collection: ${collectionToShare.name}`;
+          const warpcastIntentUrl = `warpcast://compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(frameUrl)}`;
+          
+          // Tentar abrir no app primeiro, se falhar usar a web
+          const appOpened = window.open(warpcastIntentUrl, '_self');
+          
+          // Fallback para versão web após um pequeno delay
+          setTimeout(() => {
+            if (!appOpened || appOpened.closed) {
+              window.location.href = url;
+            }
+          }, 1000);
+        } else {
+          // No desktop, abrir em nova aba
+          window.open(url, '_blank', 'noopener,noreferrer');
+        }
+
+        // Clear the collection after sharing
+        setCollectionToShare(null);
+      } catch (err) {
+        console.error("Error sharing collection:", err);
+        setError("Failed to share collection. Please try again.");
+      }
+    }
+  }, [collectionToShare, selectedNetwork, address]);
 
   // Function to handle custom royalty input
   const handleCustomRoyalty = useCallback(() => {
     const customBps = Math.round(parseFloat(customRoyalty) * 100);
     if (customBps >= 10 && customBps <= 1000) { // 0.1% to 10%
-      setRoyaltyBps(customBps);
-      setShowRoyaltyModal(false);
-      setCustomRoyalty('');
+      handleRoyaltySelection(customBps);
     } else {
       setError('Royalty must be between 0.1% and 10%');
     }
-  }, [customRoyalty]);
+  }, [customRoyalty, handleRoyaltySelection]);
 
   // Function to handle NFT sharing (updated for collections)
   const handleShareNFT = useCallback(async (nft: ReservoirNFT) => {
@@ -433,7 +465,8 @@ export function MainnetMarketplace() {
       if (isMobileDevice() || isWarpcastApp()) {
         window.open(warpcastUrl, '_blank');
       } else {
-        setShowShareDialog(true);
+        // Desktop: open in new tab
+        window.open(warpcastUrl, '_blank', 'noopener,noreferrer');
       }
 
     } catch (err) {
@@ -549,20 +582,17 @@ export function MainnetMarketplace() {
                       </div>
                       <div className="flex gap-2 mt-auto">
                         <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => handleSelectCollection(collection)}
-                          className="flex-1 text-xs"
-                        >
-                          Browse
-                        </Button>
-                        <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleShareCollection(collection)}
-                          className="flex-1 text-xs"
+                          className="flex-1 text-xs w-28 flex items-center justify-center gap-2 bg-[#6944BA] hover:bg-[#0052FF]/90 text-white border-none py-3"
                         >
-                          Share & Earn
+                          <img 
+                            src="/warpcast.png" 
+                            alt="Warpcast" 
+                            className="h-4 w-4" 
+                          />
+                          <span className="font-semibold text-white">Cast</span>
                         </Button>
                       </div>
                     </div>
@@ -929,15 +959,15 @@ export function MainnetMarketplace() {
           </div>
         )}
 
-        {/* Royalty Configuration Modal */}
+        {/* Cast & Earn Modal */}
         {showRoyaltyModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl w-full max-w-md p-6">
               <h3 className="text-lg font-medium text-black mb-4">
-                Set Your Earning Rate
+                Cast & Earn
               </h3>
               <p className="text-sm text-gray-500 mb-4">
-                Choose how much you'll earn when someone purchases through your shared link. Higher rates give you more earnings but may discourage buyers.
+                Choose your earning rate. You'll earn this percentage from every purchase made through your cast.
               </p>
               
               {/* Current Selection Display */}
@@ -1005,87 +1035,6 @@ export function MainnetMarketplace() {
                   className="text-sm"
                 >
                   Done
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Share Dialog Modal */}
-        {showShareDialog && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl w-full max-w-md p-6">
-              <h3 className="text-lg font-medium text-black mb-4">
-                Share Collection & Earn
-              </h3>
-              
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Your earning rate:</span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowRoyaltyModal(true)}
-                    className="text-xs"
-                  >
-                    {(royaltyBps / 100).toFixed(1)}% ✏️
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-500">
-                  You'll earn {(royaltyBps / 100).toFixed(1)}% of each sale made through your link
-                </p>
-              </div>
-              
-              <div className="space-y-3">
-                <Button
-                  variant="primary"
-                  onClick={() => {
-                    // Copy share URL to clipboard
-                    if (collectionToShare && navigator.clipboard) {
-                      const shareUrl = generateCollectionShareUrl(
-                        selectedNetwork,
-                        collectionToShare.contractAddress,
-                        address,
-                        royaltyBps
-                      );
-                      navigator.clipboard.writeText(shareUrl);
-                    }
-                    setShowShareDialog(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-2"
-                >
-                  📋 Copy Link
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    if (collectionToShare) {
-                      const warpcastUrl = generateCollectionWarpcastShareUrl(
-                        selectedNetwork,
-                        collectionToShare.contractAddress,
-                        collectionToShare.name,
-                        address,
-                        royaltyBps
-                      );
-                      window.open(warpcastUrl, '_blank');
-                    }
-                    setShowShareDialog(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-2"
-                >
-                  <img src="/warpcast.png" alt="Warpcast" className="h-4 w-4" />
-                  Share on Warpcast
-                </Button>
-              </div>
-              
-              <div className="flex justify-end mt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowShareDialog(false)}
-                  className="text-sm"
-                >
-                  Close
                 </Button>
               </div>
             </div>

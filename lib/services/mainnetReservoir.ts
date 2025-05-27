@@ -136,7 +136,14 @@ export async function getTrendingCollections(
     }
 
     const data = await response.json();
-    return data.collections || [];
+    
+    // Map primaryContract to contractAddress for consistency
+    const collections = (data.collections || []).map((collection: any) => ({
+      ...collection,
+      contractAddress: collection.primaryContract || collection.id
+    }));
+    
+    return collections;
   } catch (error) {
     console.error('Error fetching trending collections:', error);
     return [];
@@ -176,7 +183,14 @@ export async function searchCollections(
     }
 
     const data = await response.json();
-    return data.collections || [];
+    
+    // Map primaryContract to contractAddress for consistency
+    const collections = (data.collections || []).map((collection: any) => ({
+      ...collection,
+      contractAddress: collection.primaryContract || collection.id
+    }));
+    
+    return collections;
   } catch (error) {
     console.error('Error searching collections:', error);
     return [];
@@ -613,12 +627,10 @@ export function generateCollectionWarpcastShareUrl(
 ): string {
   const frameUrl = generateCollectionShareUrl(network, contractAddress, referrerFid, royaltyBps, baseUrl);
   
-  const royaltyPercent = royaltyBps ? (royaltyBps / 100).toFixed(1) : '0';
-  const shareText = referrerFid 
-    ? `Check out ${collectionName}! 🎨\n\nI earn ${royaltyPercent}% if you buy through my link! 💰`
-    : `Check out ${collectionName}! 🎨`;
+  // Use same simple text format as NFT individual sharing (no emojis, no royalty info)
+  const shareText = `Check out this collection: ${collectionName}`;
 
-  const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(frameUrl)}`;
+  const warpcastUrl = `https://farcaster.xyz/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(frameUrl)}`;
   
   return warpcastUrl;
 }
