@@ -368,62 +368,63 @@ export function MainnetMarketplace() {
     }
   }, [selectedNetwork, address]);
 
-  // Function to handle royalty selection and share
   const handleRoyaltySelection = useCallback((bps: number) => {
     setRoyaltyBps(bps);
-    setShowRoyaltyModal(false);
     setCustomRoyalty('');
+  }, []);
 
-    // If we have a collection to share, proceed with sharing
-    if (collectionToShare && address) {
-      try {
-        const url = generateCollectionWarpcastShareUrl(
-          selectedNetwork,
-          collectionToShare.contractAddress,
-          collectionToShare.name,
-          address,
-          bps,
-          window.location.origin
-        );
-        
-        console.log("Opening Collection Cast with Warpcast URL:", url);
-        
-        // Detectar se estamos no Warpcast ou dispositivo móvel (identical to NFT Cast)
-        const isInWarpcast = isWarpcastApp();
-        const isMobile = isMobileDevice();
-        
-        if (isInWarpcast) {
-          // No Warpcast, usar window.location.href para manter no miniapp
-          window.location.href = url;
-        } else if (isMobile) {
-          // Em dispositivo móvel mas fora do Warpcast, tentar abrir no app se possível
-          // Usar intent do Warpcast para tentar abrir no app
-          const frameUrl = `${window.location.origin}/api/frames/collection?network=${selectedNetwork.id}&contract=${collectionToShare.contractAddress}&referrer=${address}&royalty=${bps}`;
-          const shareText = `Check out this collection: ${collectionToShare.name}`;
-          const warpcastIntentUrl = `warpcast://compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(frameUrl)}`;
-          
-          // Tentar abrir no app primeiro, se falhar usar a web
-          const appOpened = window.open(warpcastIntentUrl, '_self');
-          
-          // Fallback para versão web após um pequeno delay
-          setTimeout(() => {
-            if (!appOpened || appOpened.closed) {
-              window.location.href = url;
-            }
-          }, 1000);
-        } else {
-          // No desktop, abrir em nova aba
-          window.open(url, '_blank', 'noopener,noreferrer');
-        }
+  // Function to handle cast action
+  const handleCastCollection = useCallback(() => {
+    if (!collectionToShare || !address) return;
 
-        // Clear the collection after sharing
-        setCollectionToShare(null);
-      } catch (err) {
-        console.error("Error sharing collection:", err);
-        setError("Failed to share collection. Please try again.");
+    try {
+      const url = generateCollectionWarpcastShareUrl(
+        selectedNetwork,
+        collectionToShare.contractAddress,
+        collectionToShare.name,
+        address,
+        royaltyBps,
+        window.location.origin
+      );
+      
+      console.log("Opening Collection Cast with Warpcast URL:", url);
+      
+      // Detectar se estamos no Warpcast ou dispositivo móvel (identical to NFT Cast)
+      const isInWarpcast = isWarpcastApp();
+      const isMobile = isMobileDevice();
+      
+      if (isInWarpcast) {
+        // No Warpcast, usar window.location.href para manter no miniapp
+        window.location.href = url;
+      } else if (isMobile) {
+        // Em dispositivo móvel mas fora do Warpcast, tentar abrir no app se possível
+        // Usar intent do Warpcast para tentar abrir no app
+        const frameUrl = `${window.location.origin}/api/frames/collection?network=${selectedNetwork.id}&contract=${collectionToShare.contractAddress}&referrer=${address}&royalty=${royaltyBps}`;
+        const shareText = `Check out this collection: ${collectionToShare.name}`;
+        const warpcastIntentUrl = `warpcast://compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(frameUrl)}`;
+        
+        // Tentar abrir no app primeiro, se falhar usar a web
+        const appOpened = window.open(warpcastIntentUrl, '_self');
+        
+        // Fallback para versão web após um pequeno delay
+        setTimeout(() => {
+          if (!appOpened || appOpened.closed) {
+            window.location.href = url;
+          }
+        }, 1000);
+      } else {
+        // No desktop, abrir em nova aba
+        window.open(url, '_blank', 'noopener,noreferrer');
       }
+
+      // Close modal and clear the collection after sharing
+      setShowRoyaltyModal(false);
+      setCollectionToShare(null);
+    } catch (err) {
+      console.error("Error sharing collection:", err);
+      setError("Failed to share collection. Please try again.");
     }
-  }, [collectionToShare, selectedNetwork, address]);
+  }, [collectionToShare, selectedNetwork, address, royaltyBps]);
 
   // Function to handle custom royalty input
   const handleCustomRoyalty = useCallback(() => {
@@ -1031,10 +1032,10 @@ export function MainnetMarketplace() {
                 </Button>
                 <Button
                   variant="primary"
-                  onClick={() => setShowRoyaltyModal(false)}
-                  className="text-sm"
+                  onClick={handleCastCollection}
+                  className="w-28 flex items-center justify-center gap-2 bg-[#6944BA] hover:bg-[#0052FF]/90 text-white border-none py-3"
                 >
-                  Done
+                  Cast
                 </Button>
               </div>
             </div>
