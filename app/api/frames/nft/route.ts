@@ -108,9 +108,8 @@ export async function GET(req: NextRequest) {
           
           <meta property="fc:frame:title" content="${title}">
           <meta property="fc:frame:button:1" content="Buy NFT (${priceDisplay})">
-          <meta property="fc:frame:button:1:action" content="tx">
-          <meta property="fc:frame:button:1:target" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/transaction?network=${networkId}&contract=${contract}&tokenId=${tokenId}">
-          <meta property="fc:frame:button:1:post_url" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/action">
+          <meta property="fc:frame:button:1:action" content="link">
+          <meta property="fc:frame:button:1:target" content="${buyUrl}">
           
           <meta property="fc:frame:button:2" content="View Details">
           <meta property="fc:frame:button:2:action" content="link">
@@ -120,7 +119,7 @@ export async function GET(req: NextRequest) {
             networkId,
             contract,
             tokenId,
-            action: 'initial',
+            action: 'redirect_to_miniapp',
             image: fullImageUrl,
             title: title,
             price: priceDisplay
