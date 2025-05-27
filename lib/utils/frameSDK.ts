@@ -46,19 +46,10 @@ export function formatFrameUrl(url: string): string {
 /**
  * Redireciona para o App da Warpcast se estiver em mobile mas não no app
  * @param path Caminho opcional dentro do app
- * @param fallbackUrl URL de fallback se não conseguir abrir o app
  * @returns void
  */
-export function redirectToWarpcastAppIfNeeded(path?: string, fallbackUrl?: string): void {
+export function redirectToWarpcastAppIfNeeded(path?: string): void {
   if (typeof window === 'undefined') return;
-  
-  console.log('Checking redirection...', {
-    isMobile: isMobileDevice(),
-    isInMiniApp: isInMiniApp(),
-    path,
-    fallbackUrl,
-    userAgent: window.navigator.userAgent
-  });
   
   // Só redireciona se estiver em mobile E não estiver dentro do app
   if (isMobileDevice() && !isInMiniApp()) {
@@ -67,29 +58,8 @@ export function redirectToWarpcastAppIfNeeded(path?: string, fallbackUrl?: strin
       ? `https://warpcast.com/${path}` 
       : 'https://warpcast.com/~/apps';
     
-    console.log('Redirecting to Warpcast app:', warpcastAppUrl);
-    
-    // Tentar abrir o app primeiro
-    try {
-      window.location.href = warpcastAppUrl;
-      
-      // Se não conseguir abrir o app e houver uma URL de fallback, usar ela após um delay
-      if (fallbackUrl) {
-        setTimeout(() => {
-          console.log('App opening may have failed, trying fallback:', fallbackUrl);
-          window.location.href = fallbackUrl;
-        }, 2000);
-      }
-    } catch (error) {
-      console.error('Error opening Warpcast app:', error);
-      if (fallbackUrl) {
-        window.location.href = fallbackUrl;
-      }
-    }
-  } else if (fallbackUrl && !isInMiniApp()) {
-    // Se não for mobile mas houver fallback, usar o fallback
-    console.log('Not mobile, using fallback URL:', fallbackUrl);
-    window.location.href = fallbackUrl;
+    // Abre app ou app store em dispositivos móveis
+    window.location.href = warpcastAppUrl;
   }
 }
 
