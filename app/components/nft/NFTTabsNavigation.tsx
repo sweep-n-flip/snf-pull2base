@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "../Main";
 import { CollectionList, type NFTCollection } from "./CollectionList";
 import { MainnetMarketplace } from "./MainnetMarketplace";
@@ -10,9 +11,21 @@ import { AVAILABLE_NETWORKS, type Network } from "./NetworkSelector";
 type Tab = "bridge" | "marketplace";
 
 export function NFTTabsNavigation() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>("bridge");
   const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(AVAILABLE_NETWORKS[0]);
   const [selectedCollection, setSelectedCollection] = useState<NFTCollection | null>(null);
+
+  // Read URL parameters to set initial tab state
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'marketplace') {
+      setActiveTab('marketplace');
+    } else if (tabParam === 'bridge') {
+      setActiveTab('bridge');
+    }
+    // If no tab parameter is specified, keep default 'bridge'
+  }, [searchParams]);
 
   const handleCollectionSelect = (collection: NFTCollection) => {
     setSelectedCollection(collection);

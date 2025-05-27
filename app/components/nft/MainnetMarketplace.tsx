@@ -14,8 +14,8 @@ import {
 import { isMobileDevice, isWarpcastApp } from "@/lib/utils/deviceDetection";
 import { ConnectWallet } from "@coinbase/onchainkit/wallet";
 import { adaptViemWallet, Execute } from "@reservoir0x/reservoir-sdk";
-import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { useAccount, useWalletClient } from "wagmi";
 import { Button, Card } from "../Main";
 
