@@ -38,9 +38,19 @@ export async function prepareFramePurchaseTransaction(
   baseUrl: string
 ): Promise<FrameNFTData> {
   try {
+    console.log('Starting frame purchase preparation:', {
+      network: network.name,
+      contract,
+      tokenId,
+      userAddress: userAddress === '${WALLET}' ? 'PLACEHOLDER' : userAddress,
+      baseUrl
+    });
+
     // 1. Buscar dados do NFT na Reservoir
     const apiUrl = `${network.reservoirBaseUrl}/tokens/v7?tokens=${contract}:${tokenId}`;
     const apiKey = process.env.NEXT_PUBLIC_RESERVOIR_API_KEY || 'demo-api-key';
+    
+    console.log('Fetching NFT data from:', apiUrl);
     
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -51,18 +61,35 @@ export async function prepareFramePurchaseTransaction(
     });
     
     if (!response.ok) {
-      throw new Error(`Failed to fetch NFT data: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Failed to fetch NFT data:', { status: response.status, error: errorText });
+      throw new Error(`Failed to fetch NFT data: ${response.status} - ${errorText}`);
     }
     
     const data = await response.json();
+    console.log('NFT data received:', {
+      hasTokens: !!data.tokens,
+      tokenCount: data.tokens?.length || 0,
+      firstToken: data.tokens?.[0] ? 'present' : 'missing'
+    });
+    
     const nft = data.tokens?.[0];
     
     if (!nft || !nft.token) {
-      throw new Error('NFT not available');
+      console.error('NFT not found in response:', data);
+      throw new Error('NFT not available or not found');
     }
 
     // Verificar se o NFT está à venda
     if (!nft.market?.floorAsk?.id) {
+      console.warn('NFT not for sale:', {
+        contract,
+        tokenId,
+        hasMarket: !!nft.market,
+        hasFloorAsk: !!nft.market?.floorAsk,
+        hasId: !!nft.market?.floorAsk?.id
+      });
+      
       return {
         success: false,
         error: 'NFT not for sale',
@@ -75,36 +102,70 @@ export async function prepareFramePurchaseTransaction(
           attributes: nft.token?.attributes,
           owner: nft.token?.owner
         },
-        price: nft.market?.floorAsk?.price?.amount?.native || 'Not for sale',
-        currency: nft.market?.floorAsk?.price?.currency?.symbol || 'ETH'
+        price: 'Not for sale',
+        currency: 'ETH'
       };
     }
     
-    // 2. Preparar dados da transação
+    // 2. Preparar dados da transação com validação melhorada
     const orderId = nft.market.floorAsk.id;
+    
+    // Validar se temos um endereço de wallet válido ou usar placeholder
+    const taker = userAddress && userAddress.startsWith('0x') && !userAddress.includes('${WALLET}') 
+      ? userAddress 
+      : "${WALLET}";
     
     console.log('Preparing transaction with parameters:', {
       network: network.name,
       orderId,
-      userAddress,
+      taker,
       baseUrl,
-      usingWalletPlaceholder: !userAddress || userAddress.includes('${WALLET}') || userAddress.includes('fid:')
+      usingWalletPlaceholder: taker === "${WALLET}",
+      priceNative: nft.market?.floorAsk?.price?.amount?.native,
+      currency: nft.market?.floorAsk?.price?.currency?.symbol
     });
     
     const txData = await getReservoirExecuteData(network, {
       orderId: orderId,
       quantity: 1,
-      taker: userAddress || "${WALLET}", // Use Farcaster's transaction action placeholder standard
+      taker: taker,
       source: "pull2base-frame",
       referrer: baseUrl
     });
     
-    if (!txData || !txData.txUrl) {
-      throw new Error('Failed to prepare transaction');
+    if (!txData || !txData.step?.action?.data) {
+      console.error('Invalid transaction data received:', {
+        hasTxData: !!txData,
+        hasStep: !!txData?.step,
+        hasAction: !!txData?.step?.action,
+        hasData: !!txData?.step?.action?.data,
+        txData: txData ? JSON.stringify(txData, null, 2) : 'null'
+      });
+      throw new Error('Failed to prepare transaction - invalid response from Reservoir');
     }
     
-    // Log the transaction URL for debugging
-    console.log('Generated transaction URL:', txData.txUrl);
+    // Validar dados essenciais da transação
+    const actionData = txData.step.action.data;
+    if (!actionData.to || !actionData.data) {
+      console.error('Missing required transaction fields:', {
+        hasTo: !!actionData.to,
+        hasData: !!actionData.data,
+        toValue: actionData.to,
+        dataLength: actionData.data ? actionData.data.length : 0
+      });
+      throw new Error('Transaction data missing required fields (to, data)');
+    }
+    
+    // Log the transaction data for debugging
+    console.log('Generated transaction data:', {
+      txUrl: txData.txUrl,
+      hasStep: !!txData.step,
+      hasAction: !!txData.step?.action,
+      hasData: !!txData.step?.action?.data,
+      to: actionData.to,
+      dataLength: actionData.data.length,
+      value: actionData.value || '0'
+    });
     
     // 3. Retornar dados formatados para uso no Frame
     return {
@@ -119,11 +180,11 @@ export async function prepareFramePurchaseTransaction(
         owner: nft.token?.owner
       },
       txUrl: txData.txUrl,
-      // Also include the raw transaction data for new endpoint
+      // Incluir dados de transação para o endpoint /transaction
       txInfo: {
-        to: txData.step?.action?.data?.to,
-        data: txData.step?.action?.data?.data,
-        value: txData.step?.action?.data?.value || '0',
+        to: actionData.to,
+        data: actionData.data,
+        value: actionData.value || '0x0',
         chainId: network.chainId.toString()
       },
       price: nft.market?.floorAsk?.price?.amount?.native || 0,

@@ -44,6 +44,24 @@ export async function getReservoirExecuteData(
     const executeUrl = `${network.reservoirBaseUrl}/execute/v7`;
     const apiKey = process.env.NEXT_PUBLIC_RESERVOIR_API_KEY || 'demo-api-key';
     
+    const requestBody = {
+      items: [{
+        orderId: params.orderId,
+        quantity: params.quantity || 1
+      }],
+      taker: params.taker,
+      source: params.source || 'pull2base',
+      referrer: params.referrer
+    };
+
+    console.log('Reservoir execute request:', {
+      url: executeUrl,
+      network: network.name,
+      chainId: network.chainId,
+      body: requestBody,
+      apiKey: apiKey.substring(0, 8) + '***' // Ocultar a chave da API
+    });
+    
     // Chamada à API do Reservoir
     const response = await fetch(executeUrl, {
       method: 'POST',
@@ -51,22 +69,28 @@ export async function getReservoirExecuteData(
         'Content-Type': 'application/json',
         'x-api-key': apiKey
       },
-      body: JSON.stringify({
-        items: [{
-          orderId: params.orderId,
-          quantity: params.quantity || 1
-        }],
-        taker: params.taker,
-        source: params.source || 'pull2base',
-        referrer: params.referrer
-      })
+      body: JSON.stringify(requestBody)
     });
     
     if (!response.ok) {
-      throw new Error(`Failed to get execution data: ${await response.text()}`);
+      const errorText = await response.text();
+      console.error('Reservoir API error:', { 
+        status: response.status, 
+        statusText: response.statusText,
+        error: errorText,
+        url: executeUrl,
+        body: requestBody
+      });
+      throw new Error(`Failed to get execution data: ${response.status} - ${errorText}`);
     }
     
     const data = await response.json() as ReservoirExecuteResponse;
+    
+    console.log('Reservoir response:', {
+      hasSteps: !!data.steps,
+      stepCount: data.steps?.length || 0,
+      firstStepType: data.steps?.[0]?.action?.type
+    });
     
     if (!data.steps || data.steps.length === 0) {
       throw new Error('No execution steps returned');
@@ -76,15 +100,36 @@ export async function getReservoirExecuteData(
     const step = data.steps[0];
     
     if (!step.action || step.action.type !== 'transaction') {
-      throw new Error('Invalid action type');
+      console.error('Invalid step data:', { 
+        hasAction: !!step.action, 
+        actionType: step.action?.type,
+        step: JSON.stringify(step, null, 2)
+      });
+      throw new Error(`Invalid action type: expected 'transaction', got '${step.action?.type}'`);
     }
     
     // Extrair dados da transação
     const txData = step.action.data;
     
+    if (!txData.to || !txData.data) {
+      console.error('Invalid transaction data:', txData);
+      throw new Error('Transaction data missing required fields (to, data)');
+    }
+
+    // Garantir que o valor está no formato correto (hexadecimal)
+    let value = txData.value || '0';
+    if (value && !value.startsWith('0x')) {
+      // Se não for hex, converter o valor numérico para hex
+      if (!isNaN(Number(value))) {
+        value = '0x' + Number(value).toString(16);
+      } else {
+        value = '0x0';
+      }
+    }
+    
     // Formatar URL para o frame Farcaster
     // ethereum:{contract-address}@{chain-id}/call?data={data}&value={value}
-    const txUrl = `ethereum:${txData.to}@${network.chainId}/call?data=${txData.data}&value=${txData.value || 0}`;
+    const txUrl = `ethereum:${txData.to}@${network.chainId}/call?data=${txData.data}&value=${value}`;
     
     // Log formatted transaction URL and see if we're using special placeholders
     const placeholder = params.taker && (params.taker.includes('${') || params.taker.includes('fid:'));
@@ -92,7 +137,8 @@ export async function getReservoirExecuteData(
       txUrl,
       to: txData.to,
       chainId: network.chainId,
-      value: txData.value || 0,
+      value: value,
+      originalValue: txData.value,
       fromAddress: txData.from,
       takerAddress: params.taker,
       placeholder,

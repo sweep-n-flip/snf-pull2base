@@ -1,5 +1,18 @@
 import { MAINNET_NETWORKS } from '@/lib/services/mainnetReservoir';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse           <!-- Frame metadata -->
+          <meta property="fc:frame" content="vNext">
+          <meta property="fc:frame:image" content="${fullImageUrl}">
+          <meta property="fc:frame:post_url" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/action">
+          
+          <meta property="fc:frame:title" content="${title}">
+          <meta property="fc:frame:button:1" content="Buy NFT (${priceDisplay})">
+          <meta property="fc:frame:button:1:action" content="tx">
+          <meta property="fc:frame:button:1:target" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/transaction?network=${networkId}&contract=${contract}&tokenId=${tokenId}">
+          <meta property="fc:frame:button:1:post_url" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/action">
+          
+          <meta property="fc:frame:button:2" content="View Details">
+          <meta property="fc:frame:button:2:action" content="link">
+          <meta property="fc:frame:button:2:target" content="${buyUrl}">`next/server';
 
 export async function GET(req: NextRequest) {
   // Get URL parameters
@@ -108,7 +121,13 @@ export async function GET(req: NextRequest) {
           
           <meta property="fc:frame:title" content="${title}">
           <meta property="fc:frame:button:1" content="Buy NFT (${priceDisplay})">
-          <meta property="fc:frame:requires_signature" content="true">
+          <meta property="fc:frame:button:1:action" content="tx">
+          <meta property="fc:frame:button:1:target" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/transaction?network=${networkId}&contract=${contract}&tokenId=${tokenId}">
+          <meta property="fc:frame:button:1:post_url" content="${baseUrl.replace('http://', 'https://')}/api/frames/nft/action">
+          
+          <meta property="fc:frame:button:2" content="View Details">
+          <meta property="fc:frame:button:2:action" content="link">
+          <meta property="fc:frame:button:2:target" content="${buyUrl}">
           
           <meta property="fc:frame:state" content="${Buffer.from(JSON.stringify({
             networkId,
@@ -116,7 +135,8 @@ export async function GET(req: NextRequest) {
             tokenId,
             action: 'initial',
             image: fullImageUrl,
-            title: title
+            title: title,
+            price: priceDisplay
           })).toString('base64')}">
         </head>
         <body>

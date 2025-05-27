@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         { 
           error: 'Missing required parameters',
-          message: 'The network, contract, and tokenId parameters are required.'
+          required: ['network', 'contract', 'tokenId'],
+          received: { networkId, contract, tokenId }
         }, 
         { 
           status: 400,
@@ -45,8 +46,9 @@ export async function GET(req: NextRequest) {
       console.error('Invalid network ID:', networkId);
       return NextResponse.json(
         { 
-          error: 'Invalid network',
-          message: 'The specified network is not supported.'
+          error: 'Unsupported network',
+          networkId,
+          supportedNetworks: MAINNET_NETWORKS.map(n => ({ id: n.id, name: n.name }))
         }, 
         { 
           status: 400,
@@ -64,10 +66,11 @@ export async function GET(req: NextRequest) {
 
     // Set placeholder wallet address for frame transaction
     // This will be replaced by Farcaster Frame with the actual user's wallet
-    // Use testWallet for development/testing if provided
     const walletAddress = testWallet && testWallet.startsWith('0x') 
       ? testWallet 
-      : '${WALLET}'; // Placeholder that Farcaster Frame will replace
+      : '${WALLET}'; // Placeholder padrão do Farcaster
+
+    console.log('Using wallet address:', walletAddress === '${WALLET}' ? 'PLACEHOLDER' : walletAddress);
 
     // Prepare the transaction data using our service
     const purchaseData = await prepareFramePurchaseTransaction(
@@ -83,7 +86,32 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(
         { 
           error: 'Transaction preparation failed',
-          message: purchaseData.error || 'Unable to prepare the transaction data.'
+          message: purchaseData.error || 'Unable to prepare the transaction data.',
+          details: {
+            hasNft: !!purchaseData.nft,
+            hasTxInfo: !!purchaseData.txInfo,
+            price: purchaseData.price,
+            currency: purchaseData.currency
+          }
+        }, 
+        { 
+          status: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+    }
+
+    // Validar dados da transação
+    const txInfo = purchaseData.txInfo;
+    if (!txInfo.to || !txInfo.data) {
+      console.error('Invalid transaction data:', txInfo);
+      return NextResponse.json(
+        { 
+          error: 'Invalid transaction data',
+          message: 'Transaction data is missing required fields'
         }, 
         { 
           status: 500,
@@ -97,18 +125,52 @@ export async function GET(req: NextRequest) {
 
     // Format for Farcaster Frame transaction action
     // https://docs.farcaster.xyz/reference/frames/spec#transaction-button-action
-    const txData = purchaseData.txInfo;
     const frameTransactionData = {
       chainId: `eip155:${network.chainId}`,
       method: 'eth_sendTransaction',
       params: {
-        to: txData.to,
-        data: txData.data,
-        value: txData.value || '0',
-        // Standard gas parameters can be added here if needed
-        // gas: '0x7A120', // Example gas limit
+        to: txInfo.to,
+        data: txInfo.data,
+        value: txInfo.value && txInfo.value !== '0' ? txInfo.value : '0x0'
       }
     };
+
+    // Validar formato dos dados da transação
+    if (!frameTransactionData.params.to.startsWith('0x')) {
+      console.error('Invalid "to" address format:', frameTransactionData.params.to);
+      return NextResponse.json(
+        { error: 'Invalid transaction "to" address format' },
+        { 
+          status: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+    }
+
+    if (!frameTransactionData.params.data.startsWith('0x')) {
+      console.error('Invalid data format:', frameTransactionData.params.data);
+      return NextResponse.json(
+        { error: 'Invalid transaction data format' },
+        { 
+          status: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+    }
+
+    console.log('Returning frame transaction data:', {
+      chainId: frameTransactionData.chainId,
+      to: frameTransactionData.params.to,
+      dataLength: frameTransactionData.params.data?.length || 0,
+      value: frameTransactionData.params.value,
+      method: frameTransactionData.method
+    });
 
     // Return the transaction data with CORS headers
     return NextResponse.json(frameTransactionData, {
