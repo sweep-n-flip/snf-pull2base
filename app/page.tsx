@@ -1,27 +1,18 @@
 "use client";
 
 import frameSDK from "@/lib/utils/frameSDK";
-import {
-  Address,
-  Avatar,
-  EthBalance,
-  Identity,
-  Name,
-} from "@coinbase/onchainkit/identity";
 import { useAddFrame, useMiniKit } from "@coinbase/onchainkit/minikit";
-import {
-  ConnectWallet,
-  Wallet,
-  WalletDropdown,
-  WalletDropdownDisconnect,
-} from "@coinbase/onchainkit/wallet";
 import { useCallback, useEffect, useState } from "react";
+import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { Button, Header, Icon, Logo } from "./components/Main";
 import { NFTTabsWrapper } from "./components/nft/NFTTabsWrapper";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
+  const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
 
   const addFrame = useAddFrame();
 
@@ -65,20 +56,26 @@ export default function App() {
     <Header>
       <Logo />
       <div className="flex items-center">
-        <Wallet className="z-10">
-          <ConnectWallet className="bg-[#FF2E00] hover:bg-[#FF2E00]/80">
-           <Name className="text-inherit" />
-          </ConnectWallet>
-          <WalletDropdown>
-            <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
-              <Avatar />
-              <Name />
-              <Address />
-              <EthBalance />
-            </Identity>
-            <WalletDropdownDisconnect />
-          </WalletDropdown>
-        </Wallet>
+        {isConnected ? (
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">
+              {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''}
+            </span>
+            <Button 
+              className="bg-[#FF2E00] hover:bg-[#FF2E00]/80"
+              onClick={() => disconnect()}
+            >
+              Disconnect
+            </Button>
+          </div>
+        ) : (
+          <Button 
+            className="bg-[#FF2E00] hover:bg-[#FF2E00]/80"
+            onClick={() => connect({ connector: connectors[0] })}
+          >
+            Connect Wallet
+          </Button>
+        )}
       </div>
     </Header>
   );

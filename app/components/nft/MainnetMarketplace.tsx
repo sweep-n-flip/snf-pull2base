@@ -16,16 +16,16 @@ import {
   searchCollections
 } from "@/lib/services/mainnetReservoir";
 import { isMobileDevice, isWarpcastApp } from "@/lib/utils/deviceDetection";
-import { ConnectWallet } from "@coinbase/onchainkit/wallet";
 import { adaptViemWallet, Execute } from "@reservoir0x/reservoir-sdk";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { useAccount, useWalletClient } from "wagmi";
+import { useAccount, useConnect, useWalletClient } from "wagmi";
 import { Button, Card } from "../Main";
 
 export function MainnetMarketplace() {
   const { isConnected, address } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const { connect, connectors } = useConnect();
   const searchParams = useSearchParams();
   
   const [selectedNetwork, setSelectedNetwork] = useState(MAINNET_NETWORKS[0]);
@@ -225,6 +225,7 @@ export function MainnetMarketplace() {
             selectedNFT.token.contract,
             selectedNFT.token.tokenId,
             buyerAddress,
+            wallet, // Pass the wallet adapter
             referrerAddress,
             royaltyBps
           )
@@ -830,9 +831,14 @@ export function MainnetMarketplace() {
                           </p>
                         </div>
                         {!isConnected ? (
-                          <ConnectWallet className="bg-[#FF2E00] hover:bg-[#FF2E00]/80">
+                          <Button 
+                            variant="primary" 
+                            size="md"
+                            onClick={() => connect({ connector: connectors[0] })}
+                            className="bg-[#FF2E00] hover:bg-[#FF2E00]/80"
+                          >
                             Connect Wallet
-                          </ConnectWallet>
+                          </Button>
                         ) : (
                           <Button 
                             variant="primary" 

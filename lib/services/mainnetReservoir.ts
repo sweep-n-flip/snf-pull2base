@@ -455,79 +455,105 @@ export async function buyNFTDirectly(
 
 /**
  * Purchase NFT with custom referrer royalties
- * Uses Reservoir's execute/buy/v7 endpoint with referrer fee support
+ * Uses Reservoir SDK with feesOnTop parameter for referrer fee support
  */
 export async function buyNFTWithReferrer(
   network: MainnetNetwork,
   contractAddress: string,
   tokenId: string,
   buyerAddress: string,
+  wallet: any, // Wallet adapter required for SDK
   referrerAddress?: string,
   referrerFeeBps?: number // Basis points (100 = 1%)
-): Promise<{
-  success: boolean;
-  error?: string;
-  txHash?: string;
-  steps?: any[];
-  message?: string;
-}> {
+): Promise<BuyNFTResponse> {
   try {
-    const apiKey = API_KEYS[network.chainId];
-    const apiUrl = network.reservoirBaseUrl;
-
-    // Build the purchase request body
-    const requestBody: any = {
-      items: [
-        {
-          token: `${contractAddress}:${tokenId}`,
-          quantity: 1
-        }
-      ],
-      taker: buyerAddress,
-      onlyPath: false,
-      forceRouter: false,
-      skipBalanceCheck: false
+    const reservoirClient = getReservoirClient(network);
+    
+    if (!reservoirClient) {
+      throw new Error("Failed to initialize Reservoir client");
+    }
+    
+    if (!wallet) {
+      throw new Error("Wallet is required for buying NFTs");
+    }
+    
+    // Format the token identifier
+    const token = `${contractAddress}:${tokenId}`;
+    
+    let steps: Execute['steps'] = [];
+    let txHash: string | undefined;
+    
+    // Build options object with referrer fees if provided
+    const options: any = {
+      skipBalanceCheck: true // Skip balance checking to allow transaction to proceed
     };
-
+    
     // Add referrer fee if provided
     if (referrerAddress && referrerFeeBps && referrerFeeBps > 0) {
-      requestBody.feesOnTop = [
-        {
-          recipient: referrerAddress,
-          bps: referrerFeeBps
-        }
+      options.feesOnTop = [
+        `${referrerAddress}:${referrerFeeBps}`
       ];
     }
-
-    // Execute the purchase
-    const response = await fetch(`${apiUrl}/execute/buy/v7`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'accept': '*/*',
-        'x-api-key': apiKey
-      },
-      body: JSON.stringify(requestBody)
+    
+    // Execute purchase using Reservoir SDK
+    await reservoirClient.actions.buyToken({
+      items: [{ token }],
+      wallet,
+      chainId: network.chainId,
+      options,
+      onProgress: (currentSteps: Execute['steps']) => {
+        if (!currentSteps) {
+          return;
+        }
+        
+        steps = currentSteps;
+        
+        // Extract transaction hash when available
+        if (currentSteps.length >= 2 && 
+            currentSteps[1].items?.length && 
+            currentSteps[1].items[0].txHashes) {
+          txHash = currentSteps[1].items[0].txHashes[0]?.txHash;
+        }
+      }
     });
-
-    if (!response.ok) {
-      throw new Error(`Purchase failed: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.steps || data.steps.length === 0) {
-      throw new Error('No transaction steps received');
-    }
-
+    
     return {
       success: true,
-      message: 'Purchase transaction prepared',
-      steps: data.steps
+      message: referrerAddress 
+        ? `Purchase successful! Referrer will earn ${(referrerFeeBps || 0) / 100}%`
+        : 'Purchase successful!',
+      txHash,
+      steps
     };
-
   } catch (error) {
     console.error('Error buying NFT with referrer:', error);
+    
+    // Handle specific error types (following useBuyTokens pattern)
+    if (error && typeof error === 'object') {
+      if ('type' in error && error.type === 'price mismatch') {
+        return {
+          success: false,
+          error: 'Price was greater than expected'
+        };
+      }
+      
+      if ('message' in error && typeof error.message === 'string') {
+        if (error.message.includes('ETH balance')) {
+          return {
+            success: false,
+            error: 'You have insufficient funds to buy this NFT'
+          };
+        }
+        
+        if ('code' in error && error.code === 'ACTION_REJECTED') {
+          return {
+            success: false,
+            error: 'You have canceled the transaction'
+          };
+        }
+      }
+    }
+    
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'
