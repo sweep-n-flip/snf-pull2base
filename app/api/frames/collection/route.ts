@@ -136,12 +136,19 @@ export async function GET(req: NextRequest) {
           <meta property="fc:frame:button:1:action" content="link">
           <meta property="fc:frame:button:1:target" content="${buyUrl}">
           
-          <meta property="fc:frame:button:2" content="Browse Collection">
+          ${networkId !== '8453' ? `<meta property="fc:frame:button:2" content="Pull2Base">
           <meta property="fc:frame:button:2:action" content="link">
-          <meta property="fc:frame:button:2:target" content="${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&autoSelect=true">
+          <meta property="fc:frame:button:2:target" content="${baseUrl}/?tab=bridge&network=${networkId}&contract=${contract}">
           
-          ${referrerAddress ? `<meta property="fc:frame:button:3" content="Share & Earn ${royaltyPercent}%">
-          <meta property="fc:frame:button:3:action" content="post">` : ''}
+          <meta property="fc:frame:button:3" content="Browse Collection">
+          <meta property="fc:frame:button:3:action" content="link">
+          <meta property="fc:frame:button:3:target" content="${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&autoSelect=true">` : 
+          `<meta property="fc:frame:button:2" content="Browse Collection">
+          <meta property="fc:frame:button:2:action" content="link">
+          <meta property="fc:frame:button:2:target" content="${baseUrl}?tab=marketplace&network=${networkId}&contract=${contract}&autoSelect=true">`}
+          
+          ${referrerAddress ? `<meta property="fc:frame:button:${networkId !== '8453' ? '4' : '3'}" content="Share & Earn ${royaltyPercent}%">
+          <meta property="fc:frame:button:${networkId !== '8453' ? '4' : '3'}:action" content="post">` : ''}
           
           <meta property="fc:frame:state" content="${Buffer.from(JSON.stringify({
             networkId,

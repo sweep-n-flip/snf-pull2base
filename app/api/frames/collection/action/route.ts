@@ -24,7 +24,11 @@ export async function POST(req: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin;
 
     // Handle different button actions
-    if (buttonIndex === 3) {
+    // Check if it's the "Share & Earn" button - can be button 3 or 4 depending on network
+    const isShareButton = (frameData.networkId !== '8453' && buttonIndex === 4) || 
+                         (frameData.networkId === '8453' && buttonIndex === 3);
+    
+    if (isShareButton) {
       // Share & Earn button - show custom royalty setting frame
       return new NextResponse(
         `<!DOCTYPE html>

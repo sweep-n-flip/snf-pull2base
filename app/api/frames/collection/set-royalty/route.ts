@@ -60,25 +60,18 @@ export async function POST(req: NextRequest) {
       `<!DOCTYPE html>
       <html>
         <head>
-          <title>Share Your Collection Link</title>
+          <title>Ready to Purchase</title>
           <meta property="fc:frame" content="vNext">
           <meta property="fc:frame:image" content="${baseUrl}/api/frames/collection/share-image?collection=${encodeURIComponent(frameData.collectionName || 'Collection')}&royalty=${royaltyPercent}&floor=${encodeURIComponent(frameData.floorPrice || 'N/A')}&cheapest=${encodeURIComponent(frameData.cheapestPrice || 'N/A')}">
           <meta property="fc:frame:post_url" content="${baseUrl}/api/frames/collection/action">
           
-          <meta property="fc:frame:button:1" content="Copy Share Link">
+          <meta property="fc:frame:button:1" content="Buy NFT">
           <meta property="fc:frame:button:1:action" content="link">
-          <meta property="fc:frame:button:1:target" content="${shareUrl}">
+          <meta property="fc:frame:button:1:target" content="${baseUrl}?tab=marketplace&network=${frameData.networkId}&contract=${frameData.contract}&autoSelect=true&referrer=${userFid}&royalty=${royaltyBps}">
           
-          <meta property="fc:frame:button:2" content="Share on Warpcast">
+          ${frameData.networkId !== '8453' ? `<meta property="fc:frame:button:2" content="Pull2Base">
           <meta property="fc:frame:button:2:action" content="link">
-          <meta property="fc:frame:button:2:target" content="https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(shareUrl)}">
-          
-          <meta property="fc:frame:button:3" content="View Collection">
-          <meta property="fc:frame:button:3:action" content="link">
-          <meta property="fc:frame:button:3:target" content="${baseUrl}?tab=marketplace&network=${frameData.networkId}&contract=${frameData.contract}&autoSelect=true">
-          
-          <meta property="fc:frame:button:4" content="Back">
-          <meta property="fc:frame:button:4:action" content="post">
+          <meta property="fc:frame:button:2:target" content="${baseUrl}/?tab=bridge&network=${frameData.networkId}&contract=${frameData.contract}">` : ''}
           
           <meta property="fc:frame:state" content="${Buffer.from(JSON.stringify({
             ...frameData,
@@ -88,9 +81,9 @@ export async function POST(req: NextRequest) {
           })).toString('base64')}">
         </head>
         <body>
-          <h1>Your Referral Link is Ready!</h1>
-          <p>You'll earn ${royaltyPercent}% on any purchases made through your link</p>
-          <p>Share URL: ${shareUrl}</p>
+          <h1>Ready to Purchase!</h1>
+          <p>You'll earn ${royaltyPercent}% from purchases made through your referral link</p>
+          <p>Choose your action below:</p>
         </body>
       </html>`,
       {
