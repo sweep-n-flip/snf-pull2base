@@ -23,53 +23,6 @@ export async function POST(req: NextRequest) {
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin;
 
-    // Handle different button actions
-    // Check if it's the "Share & Earn" button - can be button 3 or 4 depending on network
-    const isShareButton = (frameData.networkId !== '8453' && buttonIndex === 4) || 
-                         (frameData.networkId === '8453' && buttonIndex === 3);
-    
-    if (isShareButton) {
-      // Share & Earn button - show custom royalty setting frame
-      return new NextResponse(
-        `<!DOCTYPE html>
-        <html>
-          <head>
-            <title>Set Your Referral Rate</title>
-            <meta property="fc:frame" content="vNext">
-            <meta property="fc:frame:image" content="${baseUrl}/api/frames/collection/royalty-image?collection=${encodeURIComponent(frameData.collectionName || 'Collection')}&current=${frameData.royalty || '250'}">
-            <meta property="fc:frame:post_url" content="${baseUrl}/api/frames/collection/set-royalty">
-            
-            <meta property="fc:frame:input:text" content="Enter royalty % (0.1-10.0)">
-            
-            <meta property="fc:frame:button:1" content="Set 1%">
-            <meta property="fc:frame:button:1:action" content="post">
-            
-            <meta property="fc:frame:button:2" content="Set 2.5%">
-            <meta property="fc:frame:button:2:action" content="post">
-            
-            <meta property="fc:frame:button:3" content="Set 5%">
-            <meta property="fc:frame:button:3:action" content="post">
-            
-            <meta property="fc:frame:button:4" content="Use Custom">
-            <meta property="fc:frame:button:4:action" content="post">
-            
-            <meta property="fc:frame:state" content="${Buffer.from(JSON.stringify({
-              ...frameData,
-              userFid,
-              action: 'set_royalty'
-            })).toString('base64')}">
-          </head>
-          <body>
-            <h1>Set Your Referral Rate</h1>
-            <p>Choose how much you'll earn when someone buys through your shared link</p>
-          </body>
-        </html>`,
-        {
-          headers: { 'Content-Type': 'text/html' },
-        }
-      );
-    }
-
     // Default action - redirect to collection view
     const { networkId, contract, tokenId } = frameData;
     const redirectUrl = tokenId 
